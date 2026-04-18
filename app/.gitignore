@@ -1,0 +1,15 @@
+gitignore
+# Các file nhạy cảm của Firebase và Google
+google-services.json
+
+# Các file chứa thông tin cục bộ của máy bạn
+local.properties
+.gradle/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Các file của IDE
+.idea/
+*.iml
