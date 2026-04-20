@@ -5,10 +5,10 @@ import AdminLayout from "./layouts/AdminLayout";
 import Login from "./pages/Login";
 import DashboardPage from "./pages/DashboardPage";
 import TopicsPage from "./features/topics/TopicsPage";
-// Import trang Lessons thật vừa mới triển khai
 import LessonsPage from "./features/lessons/LessonsPage";
+// IMPORT trang Vocabulary thật
+import VocabularyPage from "./features/vocabulary/VocabularyPage";
 import {
-  VocabularyPage,
   QuestionsPage,
   ImportPage,
   UsersPage,
