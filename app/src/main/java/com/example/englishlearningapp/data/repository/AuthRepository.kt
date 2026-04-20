@@ -29,12 +29,15 @@ class AuthRepository @Inject constructor(
             val result = firebaseAuth.createUserWithEmailAndPassword(email, pass).await()
             val firebaseUser = result.user
             if (firebaseUser != null) {
-                // Tạo profile trên Firestore ngay sau khi Auth thành công
+                val now = System.currentTimeMillis()
+                // Tạo profile trên Firestore ngay sau khi Auth thành công với role mặc định là user
                 val userProfile = User(
                     uid = firebaseUser.uid,
                     email = email,
                     fullName = fullName,
-                    createdAt = System.currentTimeMillis()
+                    role = "user", // Luôn là user khi đăng ký từ app Android
+                    createdAt = now,
+                    updatedAt = now
                 )
                 firestore.collection("users")
                     .document(firebaseUser.uid)
