@@ -23,6 +23,7 @@ object Routes {
 
     // Profile (Người 1)
     const val PROFILE = "profile"
+    const val EDIT_PROFILE = "edit_profile"
     const val SETTINGS = "settings"
 
     // Helper functions để truyền tham số

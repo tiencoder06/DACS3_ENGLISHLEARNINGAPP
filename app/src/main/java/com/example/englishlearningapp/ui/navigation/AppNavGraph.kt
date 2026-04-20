@@ -15,6 +15,7 @@ import androidx.navigation.navArgument
 import com.example.englishlearningapp.ui.screens.auth.forgotpassword.ForgotPasswordScreen
 import com.example.englishlearningapp.ui.screens.auth.login.LoginScreen
 import com.example.englishlearningapp.ui.screens.auth.register.RegisterScreen
+import com.example.englishlearningapp.ui.screens.profile.EditProfileScreen
 import com.example.englishlearningapp.ui.screens.profile.ProfileScreen
 import com.example.englishlearningapp.ui.screens.settings.SettingsScreen
 import com.example.englishlearningapp.ui.screens.splash.SplashScreen
@@ -82,8 +83,9 @@ fun AppNavGraph(
 
         composable(Routes.PROFILE) {
             ProfileScreen(
-                onBack = { navController.popBackStack() },
-                onLogout = {
+                onEditProfileClick = { navController.navigate(Routes.EDIT_PROFILE) },
+                onSettingsClick = { navController.navigate(Routes.SETTINGS) },
+                onLogoutSuccess = {
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0) { inclusive = true }
                     }
@@ -91,16 +93,25 @@ fun AppNavGraph(
             )
         }
 
-        composable(Routes.SETTINGS) {
-            SettingsScreen(onBack = { navController.popBackStack() })
+        composable(Routes.EDIT_PROFILE) {
+            EditProfileScreen(
+                onBack = { navController.popBackStack() }
+            )
         }
 
-        // --- Người 2 & 3 Placeholder Stubs (Có nút bấm để Người 1 test) ---
+        composable(Routes.SETTINGS) {
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToEditProfile = { navController.navigate(Routes.EDIT_PROFILE) },
+                onNavigateToChangePassword = { navController.navigate(Routes.FORGOT_PASSWORD) }
+            )
+        }
+
+        // --- Người 2 & 3 Placeholder Stubs ---
         composable(Routes.HOME) {
             HomeScreenStub(
                 onGoToTopic = { navController.navigate(Routes.TOPIC) },
-                onGoToProfile = { navController.navigate(Routes.PROFILE) },
-                onGoToSettings = { navController.navigate(Routes.SETTINGS) }
+                onGoToProfile = { navController.navigate(Routes.PROFILE) }
             )
         }
 
@@ -159,10 +170,10 @@ fun AppNavGraph(
     }
 }
 
-// --- Stubs for other team members (Bổ sung nút để Người 1 kiểm tra Profile) ---
+// --- Stubs for other team members ---
 
 @Composable
-fun HomeScreenStub(onGoToTopic: () -> Unit, onGoToProfile: () -> Unit, onGoToSettings: () -> Unit) {
+fun HomeScreenStub(onGoToTopic: () -> Unit, onGoToProfile: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -177,18 +188,11 @@ fun HomeScreenStub(onGoToTopic: () -> Unit, onGoToProfile: () -> Unit, onGoToSet
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        // Đây là nút để bạn (Người 1) kiểm tra màn hình Profile của mình
         Button(
             onClick = onGoToProfile,
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
         ) {
             Text("Go to My Profile (Person 1)")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(onClick = onGoToSettings) {
-            Text("Settings (Person 1)")
         }
     }
 }
