@@ -4,7 +4,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import AdminLayout from "./layouts/AdminLayout";
 import Login from "./pages/Login";
 import DashboardPage from "./pages/DashboardPage";
-import TopicsPage from "./pages/TopicsPage";
+// SỬA DÒNG NÀY: Trỏ vào thư mục features để lấy file có logic CRUD
+import TopicsPage from "./features/topics/TopicsPage";
 import {
   LessonsPage,
   VocabularyPage,
