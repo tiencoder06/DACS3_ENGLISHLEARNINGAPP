@@ -5,11 +5,10 @@ export type LessonStatus = "active" | "inactive" | "deleted";
 export interface Lesson {
   lessonId: string;
   topicId: string;
-  topicName?: string; // Tên topic để hiển thị trong bảng
-  title: string;
+  name: string;
   description: string;
-  content: string;
   order: number;
+  totalWords: number;
   status: LessonStatus;
   createdAt: Timestamp;
   updatedAt: Timestamp;
