@@ -6,10 +6,10 @@ import Login from "./pages/Login";
 import DashboardPage from "./pages/DashboardPage";
 import TopicsPage from "./features/topics/TopicsPage";
 import LessonsPage from "./features/lessons/LessonsPage";
-// CHÚ Ý: Import từ features để lấy trang có logic thật
 import VocabularyPage from "./features/vocabulary/VocabularyPage";
+// IMPORT trang Questions thật từ thư mục features
+import QuestionsPage from "./features/questions/QuestionsPage";
 import {
-  QuestionsPage,
   ImportPage,
   UsersPage,
   ResultsPage
@@ -36,8 +36,8 @@ function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="topics" element={<TopicsPage />} />
             <Route path="lessons" element={<LessonsPage />} />
-            {/* Đảm bảo element sử dụng VocabularyPage thật */}
             <Route path="vocabulary" element={<VocabularyPage />} />
+            {/* SỬA DÒNG NÀY: Trỏ vào trang Questions thật có logic CRUD */}
             <Route path="questions" element={<QuestionsPage />} />
             <Route path="import" element={<ImportPage />} />
             <Route path="users" element={<UsersPage />} />
