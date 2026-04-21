@@ -6,7 +6,7 @@ import Login from "./pages/Login";
 import DashboardPage from "./pages/DashboardPage";
 import TopicsPage from "./features/topics/TopicsPage";
 import LessonsPage from "./features/lessons/LessonsPage";
-// IMPORT trang Vocabulary thật
+// CHÚ Ý: Import từ features để lấy trang có logic thật
 import VocabularyPage from "./features/vocabulary/VocabularyPage";
 import {
   QuestionsPage,
@@ -36,6 +36,7 @@ function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="topics" element={<TopicsPage />} />
             <Route path="lessons" element={<LessonsPage />} />
+            {/* Đảm bảo element sử dụng VocabularyPage thật */}
             <Route path="vocabulary" element={<VocabularyPage />} />
             <Route path="questions" element={<QuestionsPage />} />
             <Route path="import" element={<ImportPage />} />

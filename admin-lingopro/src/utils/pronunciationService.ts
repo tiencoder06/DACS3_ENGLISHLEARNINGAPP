@@ -12,7 +12,9 @@ export const fetchPronunciation = async (word: string): Promise<PronunciationDat
   }
 
   try {
-    const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.trim())}`);
+    const response = await fetch(
+      `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.trim())}`
+    );
 
     if (!response.ok) {
       if (response.status === 404) {
@@ -22,34 +24,40 @@ export const fetchPronunciation = async (word: string): Promise<PronunciationDat
     }
 
     const data = await response.json();
-    const entry = data[0];
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error("Dữ liệu từ điển không hợp lệ");
+    }
 
+    const entry = data[0];
     let pronunciation = "";
     let audioUrl = "";
     let partOfSpeech = "";
 
-    // Lấy phiên âm và audio từ mảng phonetics
-    if (entry.phonetics && entry.phonetics.length > 0) {
-      // Tìm phonetic đầu tiên có audio
-      const audioPhonetic = entry.phonetics.find((p: any) => p.audio && p.audio !== "");
+    // Extract pronunciation and audio
+    if (entry.phonetics && Array.isArray(entry.phonetics)) {
+      // Find the first item with audio
+      const audioPhonetic = entry.phonetics.find(
+        (p: any) => p.audio && p.audio.trim() !== ""
+      );
+
       if (audioPhonetic) {
         audioUrl = audioPhonetic.audio;
+        // Normalize audioUrl
+        if (audioUrl.startsWith("//")) {
+          audioUrl = `https:${audioUrl}`;
+        }
         pronunciation = audioPhonetic.text || entry.phonetic || "";
       } else {
-        // Fallback lấy phonetic đầu tiên
-        pronunciation = entry.phonetics[0].text || entry.phonetic || "";
+        // Fallback to first phonetic item with text
+        const textPhonetic = entry.phonetics.find((p: any) => p.text && p.text.trim() !== "");
+        pronunciation = textPhonetic?.text || entry.phonetic || "";
       }
     } else {
       pronunciation = entry.phonetic || "";
     }
 
-    // Chuẩn hóa audioUrl
-    if (audioUrl.startsWith("//")) {
-      audioUrl = `https:${audioUrl}`;
-    }
-
-    // Lấy loại từ
-    if (entry.meanings && entry.meanings.length > 0) {
+    // Extract partOfSpeech from meanings
+    if (entry.meanings && Array.isArray(entry.meanings) && entry.meanings.length > 0) {
       partOfSpeech = entry.meanings[0].partOfSpeech || "";
     }
 
@@ -58,7 +66,7 @@ export const fetchPronunciation = async (word: string): Promise<PronunciationDat
       audioUrl,
       partOfSpeech,
       audioText: word.trim(),
-      pronunciationSource: audioUrl ? "dictionary_api" : "tts"
+      pronunciationSource: audioUrl ? "dictionary_api" : "tts",
     };
   } catch (error: any) {
     console.error("fetchPronunciation error:", error);
@@ -67,21 +75,24 @@ export const fetchPronunciation = async (word: string): Promise<PronunciationDat
 };
 
 export const previewAudio = (audioUrl?: string, audioText?: string) => {
-  if (audioUrl) {
+  if (audioUrl && audioUrl.trim() !== "") {
     const audio = new Audio(audioUrl);
-    audio.play().catch(err => {
+    audio.play().catch((err) => {
       console.error("Audio playback failed, falling back to TTS:", err);
-      speakTTS(audioText || "");
+      if (audioText) speakTTS(audioText);
     });
-  } else if (audioText) {
+  } else if (audioText && audioText.trim() !== "") {
     speakTTS(audioText);
   }
 };
 
 const speakTTS = (text: string) => {
-  if (!window.speechSynthesis) return;
+  if (!window.speechSynthesis) {
+    console.warn("SpeechSynthesis not supported in this browser");
+    return;
+  }
 
-  // Hủy các yêu cầu phát âm trước đó
+  // Cancel any ongoing speech
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
