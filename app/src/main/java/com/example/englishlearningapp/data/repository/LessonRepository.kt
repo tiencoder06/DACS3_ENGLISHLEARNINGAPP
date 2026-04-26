@@ -1,4 +1,7 @@
 package com.example.englishlearningapp.data.repository
 
-class LessonRepository {
+import com.example.englishlearningapp.data.model.Lesson
+
+interface LessonRepository {
+    suspend fun getLessons(topicId: String): List<Lesson>
 }

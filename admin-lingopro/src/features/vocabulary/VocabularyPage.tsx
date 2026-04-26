@@ -159,6 +159,7 @@ const VocabularyPage: React.FC = () => {
                         <tr>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Từ vựng</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Ý nghĩa</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Ví dụ</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Bài học</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Phiên âm</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Trạng thái</th>
@@ -173,6 +174,7 @@ const VocabularyPage: React.FC = () => {
                                     <div className="text-[10px] text-gray-400">{(vocab.pronunciationSource || "TTS").toUpperCase()}</div>
                                 </td>
                                 <td className="px-6 py-4 text-sm text-gray-600">{vocab.meaning}</td>
+                                <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{vocab.exampleSentence || vocab.example || "---"}</td>
                                 <td className="px-6 py-4">{renderLessonLabel(vocab.lessonId)}</td>
                                 <td className="px-6 py-4 text-sm text-gray-500 italic">{vocab.pronunciation || "---"}</td>
                                 <td className="px-6 py-4 text-sm">

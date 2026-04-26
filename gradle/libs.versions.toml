@@ -11,6 +11,9 @@ composeBom = "2024.12.01"
 googleServices = "4.4.2"
 firebaseBom = "33.9.0"
 hilt = "2.55"
+material3 = "1.4.0"
+foundation = "1.10.6"
+room3CompilerProcessingTesting = "3.0.0-alpha03"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -33,6 +36,9 @@ firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-fires
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
 hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version = "1.2.0" }
+androidx-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
+androidx-room3-compiler-processing-testing = { group = "androidx.room3", name = "room3-compiler-processing-testing", version.ref = "room3CompilerProcessingTesting" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

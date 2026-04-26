@@ -11,7 +11,7 @@ import com.example.englishlearningapp.ui.navigation.AppNavGraph
 @Composable
 fun EnglishLearningApp() {
     val navController = rememberNavController()
-    
+
     Scaffold(
         bottomBar = {
             AppBottomBar(navController = navController)

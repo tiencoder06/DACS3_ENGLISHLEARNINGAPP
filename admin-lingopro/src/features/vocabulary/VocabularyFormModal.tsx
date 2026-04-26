@@ -174,7 +174,7 @@ const VocabularyFormModal: React.FC<VocabularyFormModalProps> = ({ isOpen, onClo
                 type="text"
                 required
                 value={formData.meaning || ""}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => setFormData({ ...formData, meaning: e.target.value })}
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"
                 placeholder="VD: Xin chào"
               />
