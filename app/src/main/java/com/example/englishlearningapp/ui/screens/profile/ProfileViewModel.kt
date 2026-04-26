@@ -21,9 +21,6 @@ class ProfileViewModel @Inject constructor(
     private val _userProfile = MutableStateFlow<Resource<User>>(Resource.Loading)
     val userProfile: StateFlow<Resource<User>> = _userProfile
 
-    private val _updateState = MutableStateFlow<Resource<Boolean>?>(null)
-    val updateState: StateFlow<Resource<Boolean>?> = _updateState
-
     init {
         fetchUserProfile()
     }
@@ -33,21 +30,6 @@ class ProfileViewModel @Inject constructor(
             _userProfile.value = Resource.Loading
             _userProfile.value = userRepository.getUserProfile()
         }
-    }
-
-    fun updateProfile(newName: String) {
-        viewModelScope.launch {
-            _updateState.value = Resource.Loading
-            val result = userRepository.updateFullName(newName)
-            _updateState.value = result
-            if (result is Resource.Success) {
-                fetchUserProfile() // Refresh data
-            }
-        }
-    }
-
-    fun resetUpdateState() {
-        _updateState.value = null
     }
 
     fun logout() {

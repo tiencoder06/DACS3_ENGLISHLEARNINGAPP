@@ -59,12 +59,12 @@ fun ProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Text(
-                        "Linguist", 
+                        "Linguist",
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF004ac6)
-                    ) 
+                    )
                 },
                 actions = {
                     IconButton(onClick = { /* Notification */ }) {
@@ -175,7 +175,7 @@ fun ProfileHeader(user: User, onEditClick: () -> Unit) {
                     fontWeight = FontWeight.Bold
                 )
             }
-            
+
             // Edit Overlay
             Surface(
                 modifier = Modifier
@@ -194,17 +194,17 @@ fun ProfileHeader(user: User, onEditClick: () -> Unit) {
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         Text(
             text = user.fullName,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
-        
+
         Spacer(modifier = Modifier.height(4.dp))
-        
+
         Surface(
             color = Color(0xFF006c49).copy(alpha = 0.1f),
             shape = RoundedCornerShape(16.dp)
@@ -249,15 +249,15 @@ fun StatCard(
 fun MenuItem(title: String, icon: ImageVector, onClick: () -> Unit) {
     ListItem(
         headlineContent = { Text(title, fontWeight = FontWeight.Medium) },
-        leadingContent = { 
+        leadingContent = {
             Surface(
                 modifier = Modifier.size(40.dp),
                 shape = RoundedCornerShape(12.dp),
                 color = Color(0xFFfaf8ff)
             ) {
                 Icon(
-                    icon, 
-                    contentDescription = null, 
+                    icon,
+                    contentDescription = null,
                     modifier = Modifier.padding(8.dp),
                     tint = Color(0xFF004ac6)
                 )

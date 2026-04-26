@@ -27,16 +27,4 @@ class UserRepository @Inject constructor(
             Resource.Error(e.localizedMessage ?: "Failed to fetch profile")
         }
     }
-
-    suspend fun updateFullName(newName: String): Resource<Boolean> {
-        return try {
-            val uid = auth.currentUser?.uid ?: return Resource.Error("User not logged in")
-            firestore.collection("users").document(uid)
-                .update("fullName", newName)
-                .await()
-            Resource.Success(true)
-        } catch (e: Exception) {
-            Resource.Error(e.localizedMessage ?: "Update failed")
-        }
-    }
 }
