@@ -2,8 +2,10 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useQuestions } from "./useQuestions";
 import { getLessons } from "../lessons/lessonService";
 import { getVocabulary } from "../vocabulary/vocabularyService";
+import { getTopics } from "../topics/topicService";
 import { type Lesson } from "../../models/Lesson";
 import { type Vocabulary } from "../../models/Vocabulary";
+import { type Topic } from "../../models/Topic";
 import { type Question, type QuestionType, type QuestionUsage, type QuestionStatus } from "../../models/Question";
 import QuestionFormModal from "./QuestionFormModal";
 
@@ -18,9 +20,11 @@ const QuestionsPage: React.FC = () => {
     deleteQuestion
   } = useQuestions();
 
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [vocabulary, setVocabulary] = useState<Vocabulary[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [topicFilter, setTopicFilter] = useState<string>("all");
   const [lessonFilter, setLessonFilter] = useState<string>("all");
   const [vocabFilter, setVocabFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<QuestionType | "all">("all");
@@ -33,7 +37,8 @@ const QuestionsPage: React.FC = () => {
   useEffect(() => {
     const loadDependencies = async () => {
       try {
-        const [lData, vData] = await Promise.all([getLessons(), getVocabulary()]);
+        const [tData, lData, vData] = await Promise.all([getTopics(), getLessons(), getVocabulary()]);
+        setTopics(tData);
         setLessons(lData);
         setVocabulary(vData);
       } catch (err) {
@@ -42,6 +47,12 @@ const QuestionsPage: React.FC = () => {
     };
     loadDependencies();
   }, []);
+
+  const topicMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    topics.forEach(t => map[t.topicId] = t.name);
+    return map;
+  }, [topics]);
 
   const lessonMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -58,13 +69,14 @@ const QuestionsPage: React.FC = () => {
   const filteredQuestions = questions.filter(q => {
     const matchesSearch = q.questionText.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          q.correctAnswer.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesTopic = topicFilter === "all" || q.topicId === topicFilter;
     const matchesLesson = lessonFilter === "all" || q.lessonId === lessonFilter;
     const matchesVocab = vocabFilter === "all" || q.vocabId === vocabFilter;
     const matchesType = typeFilter === "all" || q.questionType === typeFilter;
     const matchesUsage = usageFilter === "all" || q.usage === usageFilter;
     const matchesStatus = statusFilter === "all" || q.status === statusFilter;
 
-    return matchesSearch && matchesLesson && matchesVocab && matchesType && matchesUsage && matchesStatus;
+    return matchesSearch && matchesTopic && matchesLesson && matchesVocab && matchesType && matchesUsage && matchesStatus;
   });
 
   const handleAddNew = () => {
@@ -96,10 +108,6 @@ const QuestionsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 text-left">
-      <div className="bg-blue-50 p-2 rounded text-[10px] text-blue-600 font-bold mb-2">
-        Real CRUD QuestionsPage loaded
-      </div>
-
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h2 className="text-2xl font-bold text-gray-800">Quản lý câu hỏi</h2>
         <div className="flex items-center gap-3">
@@ -110,7 +118,6 @@ const QuestionsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Advanced Filters */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
         <div className="flex-1 relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
@@ -122,7 +129,11 @@ const QuestionsPage: React.FC = () => {
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none transition"
             />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <select value={topicFilter} onChange={(e) => setTopicFilter(e.target.value)} className="px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none">
+                <option value="all">Tất cả chủ đề</option>
+                {topics.map(t => <option key={t.topicId} value={t.topicId}>{t.name}</option>)}
+            </select>
             <select value={lessonFilter} onChange={(e) => setLessonFilter(e.target.value)} className="px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none">
                 <option value="all">Tất cả bài học</option>
                 {lessons.map(l => <option key={l.lessonId} value={l.lessonId}>{l.name}</option>)}
@@ -164,7 +175,7 @@ const QuestionsPage: React.FC = () => {
                     <thead className="bg-gray-50 border-b border-gray-100">
                         <tr>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Câu hỏi</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Bài học / Từ vựng</th>
+                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Thông tin liên kết</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Loại / Mục đích</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Đáp án</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-right">Thao tác</th>
@@ -179,12 +190,13 @@ const QuestionsPage: React.FC = () => {
                                         {q.status.toUpperCase()}
                                     </div>
                                 </td>
-                                <td className="px-6 py-4">
-                                    <div className="text-xs text-gray-600 font-medium">{lessonMap[q.lessonId] || "Unknown lesson"}</div>
-                                    <div className="text-xs text-blue-600">{vocabMap[q.vocabId] || "No vocab linked"}</div>
+                                <td className="px-6 py-4 space-y-1">
+                                    <div className="text-[10px] text-purple-600 font-bold uppercase">{topicMap[q.topicId] || "No Topic"}</div>
+                                    <div className="text-xs text-gray-600 font-medium">{lessonMap[q.lessonId] || "No Lesson"}</div>
+                                    <div className="text-xs text-blue-600 italic">{vocabMap[q.vocabId] || "No vocab"}</div>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <div className="text-xs font-bold text-purple-600">{formatType(q.questionType)}</div>
+                                    <div className="text-xs font-bold text-gray-700">{formatType(q.questionType)}</div>
                                     <div className="text-[10px] text-gray-500 uppercase">{q.usage}</div>
                                 </td>
                                 <td className="px-6 py-4">

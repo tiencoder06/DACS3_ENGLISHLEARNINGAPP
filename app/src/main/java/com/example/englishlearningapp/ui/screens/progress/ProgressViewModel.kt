@@ -31,63 +31,65 @@ class ProgressViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // 1. Lấy dữ liệu từ bảng mới 'user_analytics'
                 val analytics = quizRepository.getUserAnalytics(userId)
-                
-                // 2. Lấy số lượng từ yếu từ bảng mới 'word_mastery'
                 val weakWordsCount = quizRepository.getWeakWordsCount(userId)
-                
-                // 3. Lấy thông tin cơ bản từ profile 'users'
                 val userStats = quizRepository.getUserStats(userId)
+                val quizResults = quizRepository.getQuizResults(userId)
+                val practiceAttempts = quizRepository.getStudySessionCount(userId, "practice")
                 
-                // 4. Lấy kết quả quiz cuối cùng từ bảng 'quiz_results' hoặc 'study_sessions'
-                val lastResults = quizRepository.getQuizResults(userId)
-                val lastScore = lastResults.firstOrNull()?.score ?: 0
-
-                if (analytics == null) {
-                    _progress.value = Progress(
-                        evaluation = "Chào mừng bạn!",
-                        suggestion = "Bắt đầu học và hoàn thành bài tập đầu tiên để xem phân tích tiến độ nhé."
-                    )
+                if (analytics == null && quizResults.isEmpty() && practiceAttempts == 0) {
+                    _progress.value = Progress()
                     return@launch
                 }
 
-                val totalAttempts = (analytics["totalAttempts"] as? Long)?.toInt() ?: 0
-                val totalScore = (analytics["totalScore"] as? Long)?.toInt() ?: 0
-                val totalCorrect = (analytics["totalCorrect"] as? Long)?.toInt() ?: 0
-                val bestScore = (analytics["bestScore"] as? Long)?.toInt() ?: 0
+                val totalAttempts = (analytics?.get("totalAttempts") as? Long)?.toInt() ?: 0
+                val totalCorrect = (analytics?.get("totalCorrect") as? Long)?.toInt() ?: 0
+                // Total questions across all quizzes
+                // Since we don't store total questions directly in analytics in the current interface,
+                // we can estimate or fetch from history. Let's assume syncUserAnalytics handles this or we sum it up.
+                // For simplicity, if we don't have totalQuestions, we use attempts * 10 (MAX_QUESTIONS)
+                val totalQuestions = totalAttempts * 10 
+                
+                val accuracy = if (totalQuestions > 0) (totalCorrect * 100) / totalQuestions else 0
+                val bestScore = (analytics?.get("bestScore") as? Long)?.toInt() ?: 0
                 val wordsLearned = (userStats?.get("wordsLearned") as? Long)?.toInt() ?: 0
-
-                val averageScore = if (totalAttempts > 0) totalScore / totalAttempts else 0
+                val streak = (userStats?.get("streak") as? Long)?.toInt() ?: 0
+                
+                val lastScore = quizResults.firstOrNull()?.score ?: 0
+                val avgScore = if (totalAttempts > 0) ((analytics?.get("totalScore") as? Long)?.toInt() ?: 0) / totalAttempts else 0
 
                 val evaluation = when {
-                    averageScore >= 80 -> "Xuất sắc"
-                    averageScore >= 50 -> "Khá"
-                    else -> "Cần cố gắng"
+                    accuracy >= 85 -> "Thông thái"
+                    accuracy >= 70 -> "Vững vàng"
+                    accuracy >= 50 -> "Đang tiến bộ"
+                    else -> "Cần cố gắng nhiều"
                 }
 
                 val suggestion = when {
-                    weakWordsCount > 5 -> "Bạn đang có $weakWordsCount từ vựng gặp khó khăn. Hãy dành thời gian ôn lại bảng 'Từ khó' nhé!"
-                    averageScore >= 80 -> "Bạn đang học rất hiệu quả. Hãy thử sức với các bài học cấp độ cao hơn!"
-                    else -> "Luyện tập ít nhất 15 phút mỗi ngày sẽ giúp bạn cải thiện điểm trung bình."
+                    weakWordsCount > 0 -> "Bạn có $weakWordsCount từ cần cải thiện. Hãy vào phần 'Luyện tập từ khó'!"
+                    accuracy < 60 -> "Hãy làm lại các bài Quiz cũ để tăng tỷ lệ chính xác."
+                    totalAttempts < 5 -> "Làm thêm Quiz để hệ thống phân tích sâu hơn về năng lực của bạn."
+                    else -> "Phong độ rất tốt! Hãy tiếp tục chinh phục các chủ đề mới."
                 }
 
                 _progress.value = Progress(
                     totalQuizAttempts = totalAttempts,
+                    totalPracticeAttempts = practiceAttempts,
                     totalVocabulariesLearned = wordsLearned,
-                    averageScore = averageScore,
+                    totalAnswers = totalQuestions,
+                    correctAnswers = totalCorrect,
+                    accuracy = accuracy,
+                    weakWordsCount = weakWordsCount,
+                    mistakeCount = weakWordsCount,
+                    averageScore = avgScore,
                     bestScore = bestScore,
                     lastScore = lastScore,
-                    totalCorrectAnswers = totalCorrect,
-                    mistakeCount = weakWordsCount,
+                    streak = streak,
                     evaluation = evaluation,
                     suggestion = suggestion
                 )
             } catch (e: Exception) {
-                _progress.value = Progress(
-                    evaluation = "Lỗi",
-                    suggestion = "Không thể kết nối đến dữ liệu phân tích."
-                )
+                _progress.value = Progress(evaluation = "Lỗi tải dữ liệu", suggestion = e.message ?: "")
             } finally {
                 _isLoading.value = false
             }

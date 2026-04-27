@@ -12,10 +12,15 @@ interface QuizRepository {
 
     // 2. study_sessions: Lưu lịch sử làm bài chi tiết
     suspend fun logStudySession(userId: String, type: String, score: Int, correctCount: Int, total: Int): Boolean
+    suspend fun getStudySessionCount(userId: String, type: String): Int
     
     // 3. word_mastery: Theo dõi mức độ thuộc từ
     suspend fun updateWordMastery(userId: String, vocabId: String, isCorrect: Boolean): Boolean
+    suspend fun trackVocabularySeen(userId: String, vocabId: String): Boolean
     suspend fun getWeakWordsCount(userId: String): Int
+
+    // --- Chức năng Ôn lại lỗi sai (Review Mistakes) ---
+    suspend fun updateDifficultWordReview(userId: String, vocabId: String, isCorrect: Boolean): Boolean
 
     // --- Các hàm cũ (Giữ nguyên cho đồng đội) ---
     suspend fun saveQuizResult(result: QuizResult): Boolean

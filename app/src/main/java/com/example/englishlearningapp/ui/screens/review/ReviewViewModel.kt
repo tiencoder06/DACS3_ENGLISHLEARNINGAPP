@@ -3,8 +3,13 @@ package com.example.englishlearningapp.ui.screens.review
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.englishlearningapp.data.model.Question
+import com.example.englishlearningapp.data.repository.QuestionRepository
+import com.example.englishlearningapp.data.repository.QuizRepository
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,7 +25,10 @@ class ReviewManager @Inject constructor() {
 
 @HiltViewModel
 class ReviewViewModel @Inject constructor(
-    private val reviewManager: ReviewManager
+    private val reviewManager: ReviewManager,
+    private val questionRepository: QuestionRepository,
+    private val quizRepository: QuizRepository,
+    private val auth: FirebaseAuth
 ) : ViewModel() {
 
     private val _questions = mutableStateOf<List<Question>>(reviewManager.wrongQuestions)
@@ -43,6 +51,40 @@ class ReviewViewModel @Inject constructor(
 
     private val _isFinished = mutableStateOf(false)
     val isFinished: State<Boolean> = _isFinished
+
+    private val _isLoading = mutableStateOf(false)
+    val isLoading: State<Boolean> = _isLoading
+
+    fun loadWeakWordsQuestions() {
+        val userId = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                // 1. Get IDs of vocabularies that the user often gets wrong
+                val difficultWords = quizRepository.getDifficultWords(userId)
+                val vocabIds = difficultWords.mapNotNull { it["vocabId"] as? String }
+
+                if (vocabIds.isNotEmpty()) {
+                    // 2. Fetch all questions and filter those that match the weak vocabIds
+                    val allQuestions = questionRepository.getQuestions()
+                    val weakQuestions = allQuestions.filter { it.vocabId in vocabIds }
+
+                    if (weakQuestions.isNotEmpty()) {
+                        _questions.value = weakQuestions.shuffled().take(10)
+                    } else {
+                        // Fallback: If no direct question mapping, maybe fetch general questions
+                        _questions.value = emptyList()
+                    }
+                } else {
+                    _questions.value = emptyList()
+                }
+            } catch (e: Exception) {
+                _questions.value = emptyList()
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
 
     fun setQuestions(questions: List<Question>) {
         _questions.value = questions

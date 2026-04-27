@@ -1,24 +1,25 @@
 package com.example.englishlearningapp.ui.screens.quiz
 
 import android.speech.tts.TextToSpeech
-import androidx.compose.animation.animateColorAsState
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -38,25 +39,33 @@ fun QuizScreen(
     val userAnswers by viewModel.userAnswers
     val quizResult by viewModel.quizResult
     val isLoading by viewModel.isLoading
+    val timeLeft by viewModel.timeLeft
+    val isTimeUp by viewModel.isTimeUp
+
+    var showExitDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
-    val tts = remember {
-        var textToSpeech: TextToSpeech? = null
-        textToSpeech = TextToSpeech(context) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                textToSpeech?.language = Locale.US
-                textToSpeech?.setPitch(1.0f)
-                textToSpeech?.setSpeechRate(0.9f)
-            }
-        }
-        textToSpeech
+    val tts = remember { TextToSpeech(context) { } }
+    DisposableEffect(Unit) { onDispose { tts.shutdown() } }
+
+    BackHandler(enabled = quizResult == null) {
+        showExitDialog = true
     }
 
-    DisposableEffect(Unit) {
-        onDispose {
-            tts?.stop()
-            tts?.shutdown()
-        }
+    if (showExitDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog = false },
+            title = { Text("Thoát bài kiểm tra?", fontWeight = FontWeight.Bold) },
+            text = { Text("Kết quả hiện tại sẽ không được lưu. Bạn có chắc chắn muốn thoát?") },
+            confirmButton = {
+                TextButton(onClick = onBack) { Text("THOÁT", color = Color.Red, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitDialog = false }) { Text("TIẾP TỤC THI") }
+            },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = Color.White
+        )
     }
 
     LaunchedEffect(quizResult) {
@@ -68,126 +77,146 @@ fun QuizScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Luyện tập", fontWeight = FontWeight.Black) },
+                title = { 
+                    QuizProgressHeader(
+                        currentIndex = currentIndex,
+                        totalQuestions = questions.size
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    IconButton(onClick = { showExitDialog = true }) {
+                        Icon(Icons.Default.Close, contentDescription = "Exit", tint = Color.LightGray)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                actions = {
+                    QuizTimer(timeLeft = timeLeft)
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+        Box(modifier = Modifier.fillMaxSize().padding(padding).background(Color.White)) {
             if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (questions.isEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(64.dp), tint = Color.Gray)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Hiện chưa có câu hỏi nào cho bài học này.", style = MaterialTheme.typography.titleMedium, color = Color.Gray)
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(onClick = onBack, shape = RoundedCornerShape(12.dp)) {
-                        Text("QUAY LẠI")
-                    }
-                }
-            } else if (currentIndex < questions.size) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color(0xFF1CB0F6))
+            } else if (questions.isNotEmpty() && currentIndex < questions.size) {
                 val currentQuestion = questions[currentIndex]
                 val currentAnswer = userAnswers[currentIndex] ?: ""
+                val scrollState = rememberScrollState()
+
+                LaunchedEffect(currentIndex) {
+                    scrollState.animateScrollTo(0)
+                }
 
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(20.dp),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Thanh tiến trình
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(12.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFE5E5E5))
-                        ) {
-                            val progress = (currentIndex + 1).toFloat() / questions.size
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(progress)
-                                    .fillMaxHeight()
-                                    .clip(CircleShape)
-                                    .background(Brush.horizontalGradient(listOf(Color(0xFF58CC02), Color(0xFF23AC38))))
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            "${currentIndex + 1}/${questions.size}",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Gray
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(scrollState),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        QuizQuestionContent(
+                            question = currentQuestion,
+                            userAnswer = currentAnswer,
+                            onAnswerChange = { viewModel.onAnswer(it) },
+                            onPlayAudio = {
+                                tts.language = Locale.US
+                                tts.speak(currentQuestion.correctAnswer, TextToSpeech.QUEUE_FLUSH, null, null)
+                            }
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(32.dp))
-
-                    QuizQuestionContent(
-                        question = currentQuestion,
-                        userAnswer = currentAnswer,
-                        onAnswerChange = { viewModel.onAnswer(it) },
-                        onPlayAudio = {
-                            val audioText = currentQuestion.audioText
-                            val textToSpeak = when {
-                                !audioText.isNullOrBlank() -> audioText
-                                currentQuestion.question.isNotBlank() -> currentQuestion.question
-                                else -> currentQuestion.correctAnswer
-                            }
-                            
-                            if (textToSpeak.any { it in 'à'..'ỹ' || it in 'À'..'Ỹ' }) {
-                                tts?.language = Locale("vi", "VN")
-                            } else {
-                                tts?.language = Locale.US
-                            }
-
-                            tts?.stop()
-                            tts?.speak(textToSpeak, TextToSpeech.QUEUE_FLUSH, null, null)
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
                         onClick = {
                             if (currentIndex < questions.size - 1) viewModel.nextQuestion()
                             else viewModel.submitQuiz()
                         },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(60.dp),
+                        modifier = Modifier.fillMaxWidth().height(56.dp).padding(bottom = 16.dp),
                         shape = RoundedCornerShape(16.dp),
+                        enabled = currentAnswer.isNotBlank(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF1CB0F6),
-                            disabledContainerColor = Color(0xFFE5E5E5),
-                            contentColor = Color.White,
-                            disabledContentColor = Color.Gray
+                            disabledContainerColor = Color(0xFFE5E5E5)
                         ),
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 4.dp,
-                            disabledElevation = 0.dp
-                        ),
-                        enabled = currentAnswer.isNotBlank()
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                     ) {
                         Text(
-                            text = if (currentIndex < questions.size - 1) "TIẾP THEO" else "HOÀN THÀNH",
+                            text = if (currentIndex < questions.size - 1) "TIẾP THEO" else "NỘP BÀI",
                             fontWeight = FontWeight.Black,
-                            fontSize = 16.sp
+                            fontSize = 18.sp,
+                            color = if (currentAnswer.isNotBlank()) Color.White else Color.Gray
                         )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun QuizProgressHeader(currentIndex: Int, totalQuestions: Int) {
+    val progress by animateFloatAsState(
+        targetValue = if (totalQuestions > 0) (currentIndex + 1).toFloat() / totalQuestions else 0f,
+        label = "QuizProgressAnimation"
+    )
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(end = 16.dp)
+    ) {
+        Box(modifier = Modifier.weight(1f).height(12.dp)) {
+            Box(
+                modifier = Modifier.fillMaxSize().clip(CircleShape).background(Color(0xFFE5E5E5))
+            )
+            Box(
+                modifier = Modifier.fillMaxHeight().fillMaxWidth(progress).clip(CircleShape).background(Color(0xFF58CC02))
+            )
+            Box(
+                modifier = Modifier.fillMaxHeight(0.3f).fillMaxWidth(progress).padding(horizontal = 8.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.3f))
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = "${currentIndex + 1}/$totalQuestions",
+            fontWeight = FontWeight.Black,
+            color = Color(0xFF4B4B4B),
+            fontSize = 14.sp
+        )
+    }
+}
+
+@Composable
+fun QuizTimer(timeLeft: Int) {
+    val minutes = timeLeft / 60
+    val seconds = timeLeft % 60
+    val timerColor = if (timeLeft < 60) Color(0xFFEA2B2B) else Color(0xFF1CB0F6)
+    
+    Surface(
+        color = timerColor.copy(alpha = 0.1f),
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.padding(end = 16.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+        ) {
+            Icon(
+                Icons.Default.Timer,
+                contentDescription = null,
+                tint = timerColor,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = String.format("%02d:%02d", minutes, seconds),
+                color = timerColor,
+                fontWeight = FontWeight.Black,
+                fontSize = 15.sp
+            )
         }
     }
 }
@@ -201,102 +230,118 @@ fun QuizQuestionContent(
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
             color = Color(0xFFF0F7FF),
-            border = androidx.compose.foundation.BorderStroke(2.dp, Color(0xFFD0E4FF))
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                if (question.type == QuestionType.AUDIO) {
-                    IconButton(
-                        onClick = onPlayAudio,
-                        modifier = Modifier
-                            .size(80.dp)
-                            .background(Color.White, CircleShape)
-                            .border(2.dp, Color(0xFF1CB0F6), CircleShape)
-                    ) {
-                        Icon(Icons.Default.VolumeUp, contentDescription = null, tint = Color(0xFF1CB0F6), modifier = Modifier.size(40.dp))
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Nghe âm thanh và trả lời", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
-                } else {
-                    Text(
-                        text = question.question,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        color = Color(0xFF4B4B4B)
+            Text(
+                text = when(question.type) {
+                    QuestionType.MULTIPLE_CHOICE -> "CHỌN ĐÁP ÁN ĐÚNG"
+                    QuestionType.FILL_BLANK -> "ĐIỀN TỪ CÒN THIẾU"
+                    QuestionType.AUDIO -> "NGHE VÀ CHỌN KẾT QUẢ"
+                    else -> "CÂU HỎI"
+                },
+                color = Color(0xFF1CB0F6),
+                fontWeight = FontWeight.Black,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                textAlign = TextAlign.Start
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+
+        if (question.type == QuestionType.AUDIO) {
+            Surface(
+                onClick = onPlayAudio,
+                modifier = Modifier.size(120.dp),
+                shape = CircleShape,
+                color = Color(0xFF1CB0F6),
+                shadowElevation = 6.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.VolumeUp,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(60.dp)
                     )
                 }
             }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Nhấn để nghe", color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        } else {
+            Text(
+                text = question.question,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                color = Color(0xFF4B4B4B),
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(40.dp))
 
-        when (question.type) {
-            QuestionType.MULTIPLE_CHOICE, QuestionType.AUDIO -> {
-                if (!question.options.isNullOrEmpty()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        question.options?.forEach { option ->
-                            val isSelected = userAnswer == option
-                            val borderColor by animateColorAsState(if (isSelected) Color(0xFF1CB0F6) else Color(0xFFE5E5E5))
-                            val bgColor by animateColorAsState(if (isSelected) Color(0xFFDDF4FF) else Color.White)
+        if (question.type == QuestionType.MULTIPLE_CHOICE || question.type == QuestionType.AUDIO) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                question.options?.forEach { option ->
+                    val isSelected = userAnswer == option
 
-                            Surface(
-                                onClick = { onAnswerChange(option) },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                color = bgColor,
-                                border = androidx.compose.foundation.BorderStroke(2.dp, borderColor)
+                    Surface(
+                        onClick = { onAnswerChange(option) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (isSelected) Color(0xFFDDF4FF) else Color.White,
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = 2.dp,
+                            color = if (isSelected) Color(0xFF1CB0F6) else Color(0xFFE5E5E5)
+                        ),
+                        shadowElevation = if (isSelected) 0.dp else 2.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isSelected) Color(0xFF1CB0F6) else Color(0xFFE5E5E5)),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = option,
-                                    modifier = Modifier.padding(16.dp),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isSelected) Color(0xFF1CB0F6) else Color(0xFF4B4B4B)
-                                )
+                                if (isSelected) {
+                                    Icon(Icons.Default.Check, null, Modifier.size(16.dp), Color.White)
+                                }
                             }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(
+                                text = option,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = if (isSelected) Color(0xFF1CB0F6) else Color(0xFF4B4B4B)
+                            )
                         }
                     }
-                } else {
-                    OutlinedTextField(
-                        value = userAnswer,
-                        onValueChange = onAnswerChange,
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Nhập câu trả lời của bạn...") },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF1CB0F6),
-                            unfocusedBorderColor = Color(0xFFE5E5E5)
-                        ),
-                        singleLine = true
-                    )
                 }
             }
-            QuestionType.FILL_BLANK -> {
-                OutlinedTextField(
-                    value = userAnswer,
-                    onValueChange = onAnswerChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Nhập câu trả lời của bạn...") },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color(0xFF1CB0F6),
-                        unfocusedBorderColor = Color(0xFFE5E5E5)
-                    ),
-                    singleLine = true
+        } else {
+            OutlinedTextField(
+                value = userAnswer,
+                onValueChange = onAnswerChange,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Gõ câu trả lời tại đây...", color = Color.LightGray) },
+                shape = RoundedCornerShape(20.dp),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                ),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF1CB0F6),
+                    unfocusedBorderColor = Color(0xFFE5E5E5),
+                    focusedContainerColor = Color(0xFFF0F7FF)
                 )
-            }
-            QuestionType.MATCHING -> {
-                Text(
-                    text = "Loại câu hỏi này chưa được hỗ trợ trong bài kiểm tra.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    modifier = Modifier.padding(16.dp)
-                )
-            }
+            )
         }
     }
 }

@@ -2,8 +2,10 @@ import React, { useEffect, useState, useMemo } from "react";
 import { type Question, type QuestionType, type QuestionUsage, type QuestionStatus } from "../../models/Question";
 import { type Lesson } from "../../models/Lesson";
 import { type Vocabulary } from "../../models/Vocabulary";
+import { type Topic } from "../../models/Topic";
 import { getLessons } from "../lessons/lessonService";
 import { getVocabulary } from "../vocabulary/vocabularyService";
+import { getTopics } from "../topics/topicService";
 
 interface QuestionFormModalProps {
   isOpen: boolean;
@@ -14,10 +16,12 @@ interface QuestionFormModalProps {
 
 const QuestionFormModal: React.FC<QuestionFormModalProps> = ({ isOpen, onClose, onSubmit, initialData }) => {
   const [formData, setFormData] = useState<Partial<Question>>({
+    topicId: "",
     lessonId: "",
     vocabId: "",
     questionType: "multiple_choice" as QuestionType,
     usage: "both" as QuestionUsage,
+    title: "", // Initialize title
     questionText: "",
     options: ["", "", "", ""],
     correctAnswer: "",
@@ -25,6 +29,7 @@ const QuestionFormModal: React.FC<QuestionFormModalProps> = ({ isOpen, onClose, 
     status: "active" as QuestionStatus
   });
 
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [vocabulary, setVocabulary] = useState<Vocabulary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,7 +37,12 @@ const QuestionFormModal: React.FC<QuestionFormModalProps> = ({ isOpen, onClose, 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [lessonsData, vocabData] = await Promise.all([getLessons(), getVocabulary()]);
+        const [topicsData, lessonsData, vocabData] = await Promise.all([
+            getTopics(),
+            getLessons(),
+            getVocabulary()
+        ]);
+        setTopics(topicsData);
         setLessons(lessonsData);
         setVocabulary(vocabData);
       } catch (err) {
@@ -45,16 +55,17 @@ const QuestionFormModal: React.FC<QuestionFormModalProps> = ({ isOpen, onClose, 
   useEffect(() => {
     if (isOpen) {
       if (initialData) {
-        // Ensure exactly 4 options for UI inputs
         const normalizedOptions = [...(initialData.options || [])];
         while (normalizedOptions.length < 4) normalizedOptions.push("");
         setFormData({ ...initialData, options: normalizedOptions });
       } else {
         setFormData({
+          topicId: "",
           lessonId: "",
           vocabId: "",
           questionType: "multiple_choice",
           usage: "both",
+          title: "",
           questionText: "",
           options: ["", "", "", ""],
           correctAnswer: "",
@@ -65,26 +76,20 @@ const QuestionFormModal: React.FC<QuestionFormModalProps> = ({ isOpen, onClose, 
     }
   }, [initialData, isOpen]);
 
+  const filteredLessons = useMemo(() => {
+    if (!formData.topicId) return [];
+    return lessons.filter(l => l.topicId === formData.topicId);
+  }, [lessons, formData.topicId]);
+
   const filteredVocabulary = useMemo(() => {
+    if (!formData.lessonId) return [];
     return vocabulary.filter(v => v.lessonId === formData.lessonId);
   }, [vocabulary, formData.lessonId]);
 
-  // Handle option changes
   const handleOptionChange = (index: number, value: string) => {
     const newOptions = [...(formData.options || ["", "", "", ""])];
     newOptions[index] = value;
-
-    // If correct answer was this option, keep it synced or reset if it no longer matches
-    setFormData(prev => {
-        const next = { ...prev, options: newOptions };
-        if (prev.questionType !== "fill_blank") {
-            // Check if current correctAnswer is still in the new options list
-            if (prev.correctAnswer && !newOptions.includes(prev.correctAnswer)) {
-                next.correctAnswer = "";
-            }
-        }
-        return next;
-    });
+    setFormData(prev => ({ ...prev, options: newOptions }));
   };
 
   const handleTypeChange = (type: QuestionType) => {
@@ -92,7 +97,7 @@ const QuestionFormModal: React.FC<QuestionFormModalProps> = ({ isOpen, onClose, 
         ...prev,
         questionType: type,
         options: type === "fill_blank" ? [] : (prev.options?.length === 4 ? prev.options : ["", "", "", ""]),
-        correctAnswer: "" // Reset correct answer on type change to be safe
+        correctAnswer: ""
     }));
   };
 
@@ -127,7 +132,21 @@ const QuestionFormModal: React.FC<QuestionFormModalProps> = ({ isOpen, onClose, 
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2">Chủ đề *</label>
+              <select
+                required
+                value={formData.topicId}
+                onChange={(e) => setFormData({ ...formData, topicId: e.target.value, lessonId: "", vocabId: "" })}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+              >
+                <option value="">-- Chọn chủ đề --</option>
+                {topics.map(t => (
+                    <option key={t.topicId} value={t.topicId}>{t.name}</option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">Bài học *</label>
               <select
@@ -135,9 +154,10 @@ const QuestionFormModal: React.FC<QuestionFormModalProps> = ({ isOpen, onClose, 
                 value={formData.lessonId}
                 onChange={(e) => setFormData({ ...formData, lessonId: e.target.value, vocabId: "" })}
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                disabled={!formData.topicId}
               >
                 <option value="">-- Chọn bài học --</option>
-                {lessons.map(l => (
+                {filteredLessons.map(l => (
                     <option key={l.lessonId} value={l.lessonId}>{l.name}</option>
                 ))}
               </select>
@@ -150,7 +170,7 @@ const QuestionFormModal: React.FC<QuestionFormModalProps> = ({ isOpen, onClose, 
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                 disabled={!formData.lessonId}
               >
-                <option value="">-- Chọn từ vựng (không bắt buộc) --</option>
+                <option value="">-- Chọn từ vựng --</option>
                 {filteredVocabulary.map(v => (
                     <option key={v.vocabId} value={v.vocabId}>{v.word}</option>
                 ))}
@@ -185,6 +205,17 @@ const QuestionFormModal: React.FC<QuestionFormModalProps> = ({ isOpen, onClose, 
                 <option value="quiz">Chỉ Quiz</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">Tiêu đề câu hỏi / Hướng dẫn</label>
+            <input
+              type="text"
+              value={formData.title || ""}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none"
+              placeholder="VD: Nghe và chọn đáp án đúng"
+            />
           </div>
 
           <div>
@@ -255,18 +286,16 @@ const QuestionFormModal: React.FC<QuestionFormModalProps> = ({ isOpen, onClose, 
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-             <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Trạng thái</label>
-                <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as QuestionStatus })}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                >
-                    <option value="active">Hoạt động</option>
-                    <option value="inactive">Tạm ngưng</option>
-                </select>
-            </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">Trạng thái</label>
+            <select
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as QuestionStatus })}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            >
+                <option value="active">Hoạt động</option>
+                <option value="inactive">Tạm ngưng</option>
+            </select>
           </div>
 
           <div className="pt-6 flex gap-4">

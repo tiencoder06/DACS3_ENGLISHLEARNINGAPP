@@ -1,21 +1,20 @@
 import { useState, useEffect, useCallback } from "react";
 import { type Question } from "../../models/Question";
 import * as questionService from "./questionService";
-import { useAuth } from "../../context/AuthContext";
+import { auth } from "../../firebase/firebase";
 
 export const useQuestions = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { currentUser } = useAuth();
 
-  const loadQuestions = useCallback(async () => {
+  const fetchQuestions = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
       const data = await questionService.getQuestions();
       setQuestions(data);
-    } catch (err: any) {
+      setError(null);
+    } catch (err) {
       setError("Không thể tải danh sách câu hỏi.");
       console.error(err);
     } finally {
@@ -24,40 +23,43 @@ export const useQuestions = () => {
   }, []);
 
   useEffect(() => {
-    loadQuestions();
-  }, [loadQuestions]);
+    fetchQuestions();
+  }, [fetchQuestions]);
 
-  const handleCreateQuestion = async (data: Partial<Question>) => {
-    if (!currentUser) return;
+  const createQuestion = async (data: Partial<Question>) => {
+    const adminUid = auth.currentUser?.uid;
+    if (!adminUid) return;
     try {
-      await questionService.createQuestion(data, currentUser.uid);
-      await loadQuestions();
+      await questionService.createQuestion(data, adminUid);
+      await fetchQuestions();
     } catch (err) {
-      console.error(err);
-      throw new Error("Không thể tạo câu hỏi mới.");
+      console.error("Create failed", err);
+      throw err;
     }
   };
 
-  const handleUpdateQuestion = async (questionId: string, data: Partial<Question>) => {
-    if (!currentUser) return;
+  const updateQuestion = async (id: string, data: Partial<Question>) => {
+    const adminUid = auth.currentUser?.uid;
+    if (!adminUid) return;
     try {
-      await questionService.updateQuestion(questionId, data, currentUser.uid);
-      await loadQuestions();
+      await questionService.updateQuestion(id, data, adminUid);
+      await fetchQuestions();
     } catch (err) {
-      console.error(err);
-      throw new Error("Không thể cập nhật câu hỏi.");
+      console.error("Update failed", err);
+      throw err;
     }
   };
 
-  const handleDeleteQuestion = async (questionId: string) => {
-    if (!currentUser) return;
+  const deleteQuestion = async (id: string) => {
+    const adminUid = auth.currentUser?.uid;
+    if (!adminUid) return;
     if (!window.confirm("Bạn có chắc chắn muốn xóa câu hỏi này?")) return;
     try {
-      await questionService.softDeleteQuestion(questionId, currentUser.uid);
-      await loadQuestions();
+      await questionService.softDeleteQuestion(id, adminUid);
+      await fetchQuestions();
     } catch (err) {
-      console.error(err);
-      throw new Error("Không thể xóa câu hỏi.");
+      console.error("Delete failed", err);
+      throw err;
     }
   };
 
@@ -65,9 +67,9 @@ export const useQuestions = () => {
     questions,
     loading,
     error,
-    reloadQuestions: loadQuestions,
-    createQuestion: handleCreateQuestion,
-    updateQuestion: handleUpdateQuestion,
-    deleteQuestion: handleDeleteQuestion
+    reloadQuestions: fetchQuestions,
+    createQuestion,
+    updateQuestion,
+    deleteQuestion
   };
 };

@@ -20,4 +20,8 @@ class VocabularyRepository @Inject constructor(
     suspend fun getVocabulariesByIds(ids: List<String>): List<Vocabulary> {
         return remoteDataSource.getVocabulariesByIds(ids)
     }
+
+    suspend fun getDifficultVocabularies(userId: String): List<Vocabulary> {
+        return remoteDataSource.getDifficultVocabularies(userId)
+    }
 }

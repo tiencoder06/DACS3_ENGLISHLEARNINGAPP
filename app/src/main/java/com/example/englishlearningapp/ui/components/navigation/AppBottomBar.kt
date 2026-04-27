@@ -1,14 +1,16 @@
 package com.example.englishlearningapp.ui.components.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -23,27 +25,27 @@ data class BottomNavItem(
 @Composable
 fun AppBottomBar(navController: NavController) {
     val items = listOf(
-        BottomNavItem("Home", Icons.Default.Home, Routes.HOME),
-        BottomNavItem("Discover", Icons.Default.Search, Routes.TOPIC),
-        BottomNavItem("Progress", Icons.Default.Star, Routes.PROGRESS),
-        BottomNavItem("Profile", Icons.Default.Person, Routes.PROFILE)
+        BottomNavItem("Trang chủ", Icons.Default.Home, Routes.HOME),
+        BottomNavItem("Luyện tập", Icons.Default.Edit, "practice/general"),
+        BottomNavItem("Kiểm tra", Icons.Default.Quiz, "quiz_part_selection/general"),
+        BottomNavItem("Tiến trình", Icons.AutoMirrored.Filled.TrendingUp, Routes.PROGRESS)
     )
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Danh sách các route sẽ hiển thị BottomBar
-    val showBottomBar = currentRoute in listOf(
+    // Các màn hình chính sẽ hiển thị BottomBar
+    val mainRoutes = listOf(
         Routes.HOME,
-        Routes.TOPIC,
         Routes.PROGRESS,
-        Routes.PROFILE
+        "practice/general",
+        "quiz_part_selection/general"
     )
 
-    if (showBottomBar) {
+    if (currentRoute in mainRoutes) {
         NavigationBar(
             containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
+            tonalElevation = 8.dp
         ) {
             items.forEach { item ->
                 val selected = currentRoute == item.route
@@ -63,19 +65,15 @@ fun AppBottomBar(navController: NavController) {
                     label = {
                         Text(
                             text = item.label,
-                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
                         )
                     },
                     icon = {
                         Icon(
                             imageVector = item.icon,
-                            contentDescription = item.label,
-                            tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                            contentDescription = item.label
                         )
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
-                    )
+                    }
                 )
             }
         }

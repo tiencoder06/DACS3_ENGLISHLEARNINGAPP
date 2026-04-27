@@ -37,6 +37,7 @@ fun ReviewScreen(
     val isCorrect by viewModel.isCorrect
     val isFinished by viewModel.isFinished
     val correctCount by viewModel.correctCount
+    val isLoading by viewModel.isLoading
 
     val context = LocalContext.current
     val tts = remember {
@@ -45,6 +46,13 @@ fun ReviewScreen(
             if (status == TextToSpeech.SUCCESS) textToSpeech?.language = Locale.US
         }
         textToSpeech
+    }
+
+    // Nếu màn hình được mở mà không có câu hỏi (từ ProgressScreen), hãy tải các câu hỏi từ khó
+    LaunchedEffect(questions) {
+        if (questions.isEmpty()) {
+            viewModel.loadWeakWordsQuestions()
+        }
     }
 
     DisposableEffect(Unit) {
@@ -66,85 +74,94 @@ fun ReviewScreen(
             )
         }
     ) { padding ->
-        if (isFinished) {
-            ReviewSummary(
-                total = questions.size,
-                correct = correctCount,
-                onBack = onBack
-            )
-        } else if (questions.isNotEmpty() && currentIndex < questions.size) {
-            val currentQuestion = questions[currentIndex]
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color(0xFF1CB0F6))
+            } else if (isFinished) {
+                ReviewSummary(
+                    total = questions.size,
+                    correct = correctCount,
+                    onBack = onBack
+                )
+            } else if (questions.isNotEmpty() && currentIndex < questions.size) {
+                val currentQuestion = questions[currentIndex]
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Progress Bar
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(10.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFE5E5E5))
-                    ) {
-                        val progress = (currentIndex + 1).toFloat() / questions.size
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Progress Bar
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(progress)
-                                .fillMaxHeight()
+                                .weight(1f)
+                                .height(10.dp)
                                 .clip(CircleShape)
-                                .background(Brush.horizontalGradient(listOf(Color(0xFFFFA000), Color(0xFFFF6F00))))
+                                .background(Color(0xFFE5E5E5))
+                        ) {
+                            val progress = (currentIndex + 1).toFloat() / questions.size
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(progress)
+                                    .fillMaxHeight()
+                                    .clip(CircleShape)
+                                    .background(Brush.horizontalGradient(listOf(Color(0xFFFFA000), Color(0xFFFF6F00))))
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("${currentIndex + 1}/${questions.size}", fontWeight = FontWeight.Bold)
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    QuizQuestionContent(
+                        question = currentQuestion,
+                        userAnswer = userAnswer,
+                        onAnswerChange = { viewModel.onAnswerChange(it) },
+                        onPlayAudio = {
+                            tts?.stop()
+                            tts?.speak(currentQuestion.audioText ?: "", TextToSpeech.QUEUE_FLUSH, null, null)
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // Feedback Area
+                    if (isAnswered) {
+                        FeedbackCard(isCorrect = isCorrect, correctAnswer = currentQuestion.correctAnswer)
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    Button(
+                        onClick = {
+                            if (!isAnswered) viewModel.checkAnswer()
+                            else viewModel.nextQuestion()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (!isAnswered) Color(0xFF1CB0F6) else if (isCorrect) Color(0xFF58CC02) else Color(0xFFFF4B4B)
+                        ),
+                        enabled = userAnswer.isNotBlank()
+                    ) {
+                        Text(
+                            if (!isAnswered) "KIỂM TRA" else if (currentIndex < questions.size - 1) "TIẾP THEO" else "HOÀN THÀNH",
+                            fontWeight = FontWeight.Black
                         )
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("${currentIndex + 1}/${questions.size}", fontWeight = FontWeight.Bold)
                 }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                QuizQuestionContent(
-                    question = currentQuestion,
-                    userAnswer = userAnswer,
-                    onAnswerChange = { viewModel.onAnswerChange(it) },
-                    onPlayAudio = {
-                        tts?.stop()
-                        tts?.speak(currentQuestion.audioText ?: "", TextToSpeech.QUEUE_FLUSH, null, null)
+            } else {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.CheckCircle, null, Modifier.size(64.dp), Color(0xFF58CC02))
+                        Spacer(Modifier.height(16.dp))
+                        Text("Bạn không có câu hỏi nào cần ôn tập!", fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(24.dp))
+                        Button(onClick = onBack) { Text("QUAY LẠI") }
                     }
-                )
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                // Feedback Area
-                if (isAnswered) {
-                    FeedbackCard(isCorrect = isCorrect, correctAnswer = currentQuestion.correctAnswer)
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
-
-                Button(
-                    onClick = {
-                        if (!isAnswered) viewModel.checkAnswer()
-                        else viewModel.nextQuestion()
-                    },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (!isAnswered) Color(0xFF1CB0F6) else if (isCorrect) Color(0xFF58CC02) else Color(0xFFFF4B4B)
-                    ),
-                    enabled = userAnswer.isNotBlank()
-                ) {
-                    Text(
-                        if (!isAnswered) "KIỂM TRA" else if (currentIndex < questions.size - 1) "TIẾP THEO" else "HOÀN THÀNH",
-                        fontWeight = FontWeight.Black
-                    )
-                }
-            }
-        } else {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Không có câu hỏi nào để ôn tập.")
             }
         }
     }

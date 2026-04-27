@@ -15,9 +15,11 @@ object Routes {
 
     // Learning & Quiz
     const val PRACTICE = "practice/{lessonId}"
-    const val QUIZ = "quiz/{lessonId}"
+    const val QUIZ_PART_SELECTION = "quiz_part_selection/{lessonId}"
+    const val QUIZ = "quiz/{lessonId}/{part}"
     const val RESULT = "result/{score}/{correct}/{total}"
     const val REVIEW = "review"
+    const val REVIEW_PRACTICE = "review_practice"
     const val PROGRESS = "progress"
 
     // Profile
@@ -26,6 +28,7 @@ object Routes {
 
     // Helper functions
     fun lessonList(topicId: String) = "lesson/$topicId"
-    fun quiz(lessonId: String) = "quiz/$lessonId"
+    fun quizPartSelection(lessonId: String) = "quiz_part_selection/$lessonId"
+    fun quiz(lessonId: String, part: Int) = "quiz/$lessonId/$part"
     fun result(score: Int, correct: Int, total: Int) = "result/$score/$correct/$total"
 }

@@ -20,7 +20,6 @@ class FirebaseQuizRepository @Inject constructor(
     private val auth: FirebaseAuth
 ) : QuizRepository {
 
-    // LƯU TRỰC TIẾP VÀO BẢNG USERS ĐỂ "1 PHÁT ĂN NGAY"
     override suspend fun syncUserAnalytics(userId: String, score: Int, correctCount: Int): Boolean {
         return try {
             val ref = firestore.collection("users").document(userId)
@@ -39,12 +38,6 @@ class FirebaseQuizRepository @Inject constructor(
                 "lastStudyDate" to SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             )
             ref.set(data, SetOptions.merge()).await()
-            
-            // Backup sang user_analytics (nếu Rules cho phép)
-            try {
-                firestore.collection("user_analytics").document(userId).set(data, SetOptions.merge())
-            } catch (e: Exception) {}
-            
             true
         } catch (e: Exception) { 
             Log.e("REPO_DEBUG", "Error: ${e.message}")
@@ -54,7 +47,6 @@ class FirebaseQuizRepository @Inject constructor(
 
     override suspend fun getUserAnalytics(userId: String): Map<String, Any>? {
         return try {
-            // Ưu tiên lấy từ bảng users vì chắc chắn có dữ liệu
             firestore.collection("users").document(userId).get().await().data
         } catch (e: Exception) { null }
     }
@@ -72,6 +64,17 @@ class FirebaseQuizRepository @Inject constructor(
             firestore.collection("study_sessions").add(session)
             true
         } catch (e: Exception) { false }
+    }
+
+    override suspend fun getStudySessionCount(userId: String, type: String): Int {
+        return try {
+            firestore.collection("study_sessions")
+                .whereEqualTo("userId", userId)
+                .whereEqualTo("sessionType", type)
+                .get()
+                .await()
+                .size()
+        } catch (e: Exception) { 0 }
     }
 
     override suspend fun updateWordMastery(userId: String, vocabId: String, isCorrect: Boolean): Boolean {
@@ -93,6 +96,21 @@ class FirebaseQuizRepository @Inject constructor(
         } catch (e: Exception) { false }
     }
 
+    override suspend fun trackVocabularySeen(userId: String, vocabId: String): Boolean {
+        return try {
+            val docId = "${userId}_${vocabId}"
+            val ref = firestore.collection("word_mastery").document(docId)
+            val updates = hashMapOf(
+                "userId" to userId,
+                "vocabId" to vocabId,
+                "seenCount" to FieldValue.increment(1),
+                "lastSeen" to FieldValue.serverTimestamp()
+            )
+            ref.set(updates, SetOptions.merge())
+            true
+        } catch (e: Exception) { false }
+    }
+
     override suspend fun getWeakWordsCount(userId: String): Int {
         return try {
             firestore.collection("word_mastery")
@@ -104,10 +122,41 @@ class FirebaseQuizRepository @Inject constructor(
         } catch (e: Exception) { 0 }
     }
 
+    override suspend fun updateDifficultWordReview(userId: String, vocabId: String, isCorrect: Boolean): Boolean {
+        return try {
+            val docId = "${userId}_${vocabId}"
+            val ref = firestore.collection("difficult_words").document(docId)
+            
+            if (isCorrect) {
+                val doc = ref.get().await()
+                if (doc.exists()) {
+                    val wrongCount = doc.getLong("wrongCount") ?: 0L
+                    if (wrongCount <= 1) {
+                        ref.delete().await()
+                    } else {
+                        ref.update("wrongCount", FieldValue.increment(-1)).await()
+                    }
+                }
+            } else {
+                ref.set(hashMapOf(
+                    "userId" to userId,
+                    "vocabId" to vocabId,
+                    "wrongCount" to FieldValue.increment(1),
+                    "lastWrong" to FieldValue.serverTimestamp()
+                ), SetOptions.merge()).await()
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("REPO_DEBUG", "Error updating difficult word: ${e.message}")
+            false
+        }
+    }
+
     override suspend fun saveQuizResult(result: QuizResult): Boolean {
         return try {
             val resultMap = hashMapOf(
                 "userId" to result.userId,
+                "lessonId" to result.lessonId,
                 "score" to result.score,
                 "correctCount" to result.correctCount,
                 "totalQuestions" to result.totalQuestions,
@@ -123,12 +172,12 @@ class FirebaseQuizRepository @Inject constructor(
             val snapshot = firestore.collection("quiz_results")
                 .whereEqualTo("userId", userId)
                 .orderBy("submittedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                .limit(1)
+                .limit(10)
                 .get().await()
             snapshot.documents.mapNotNull { doc ->
                 QuizResult(
                     userId = doc.getString("userId") ?: "",
-                    lessonId = "general",
+                    lessonId = doc.getString("lessonId") ?: "general",
                     type = "quiz",
                     score = doc.getLong("score")?.toInt() ?: 0,
                     correctCount = doc.getLong("correctCount")?.toInt() ?: 0,
@@ -137,6 +186,35 @@ class FirebaseQuizRepository @Inject constructor(
                 )
             }
         } catch (e: Exception) { emptyList() }
+    }
+
+    override suspend fun updateLearningProgress(userId: String, lessonId: String, score: Int): Boolean {
+        return try {
+            val ref = firestore.collection("learning_progress").document("${userId}_${lessonId}")
+            val data = hashMapOf(
+                "userId" to userId,
+                "lessonId" to lessonId,
+                "completionPercent" to score,
+                "lastUpdated" to FieldValue.serverTimestamp()
+            )
+            ref.set(data, SetOptions.merge()).await()
+            true
+        } catch (e: Exception) { false }
+    }
+
+    override suspend fun updateDifficultWords(userId: String, vocabId: String): Boolean {
+        return try {
+            val docId = "${userId}_${vocabId}"
+            val ref = firestore.collection("difficult_words").document(docId)
+            val data = hashMapOf(
+                "userId" to userId,
+                "vocabId" to vocabId,
+                "wrongCount" to FieldValue.increment(1),
+                "lastWrong" to FieldValue.serverTimestamp()
+            )
+            ref.set(data, SetOptions.merge()).await()
+            true
+        } catch (e: Exception) { false }
     }
 
     override suspend fun getUserData(userId: String): User? {
@@ -157,11 +235,22 @@ class FirebaseQuizRepository @Inject constructor(
         } catch (e: Exception) { null }
     }
 
-    override suspend fun updateProgress(userId: String, score: Int, correctCount: Int, difficultWords: List<String>): Boolean { return true }
-    override suspend fun updateLearningProgress(userId: String, lessonId: String, score: Int): Boolean { return true }
+    override suspend fun updateProgress(userId: String, score: Int, correctCount: Int, difficultWords: List<String>): Boolean { 
+        return true 
+    }
+    
     override suspend fun getLearningProgress(userId: String): List<Map<String, Any>> { return emptyList() }
-    override suspend fun updateDifficultWords(userId: String, vocabId: String): Boolean { return true }
-    override suspend fun getDifficultWords(userId: String): List<Map<String, Any>> { return emptyList() }
+    
+    override suspend fun getDifficultWords(userId: String): List<Map<String, Any>> {
+        return try {
+            val snapshot = firestore.collection("difficult_words")
+                .whereEqualTo("userId", userId)
+                .get()
+                .await()
+            snapshot.documents.map { it.data ?: emptyMap<String, Any>() }
+        } catch (e: Exception) { emptyList() }
+    }
+
     override suspend fun incrementWordsLearned(userId: String, count: Int): Boolean {
         return try {
             firestore.collection("users").document(userId).update("wordsLearned", FieldValue.increment(count.toLong())).await()

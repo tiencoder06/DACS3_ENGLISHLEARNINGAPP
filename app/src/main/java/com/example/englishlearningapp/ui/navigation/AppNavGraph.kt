@@ -20,9 +20,11 @@ import com.example.englishlearningapp.ui.screens.home.HomeScreen
 import com.example.englishlearningapp.ui.screens.practice.PracticeScreen
 import com.example.englishlearningapp.ui.screens.profile.ProfileScreen
 import com.example.englishlearningapp.ui.screens.progress.ProgressScreen
+import com.example.englishlearningapp.ui.screens.quiz.QuizPartSelectionScreen
 import com.example.englishlearningapp.ui.screens.quiz.QuizResultScreen
 import com.example.englishlearningapp.ui.screens.quiz.QuizScreen
 import com.example.englishlearningapp.ui.screens.quiz.QuizViewModel
+import com.example.englishlearningapp.ui.screens.review.ReviewPracticeScreen
 import com.example.englishlearningapp.ui.screens.review.ReviewScreen
 import com.example.englishlearningapp.ui.screens.review.ReviewViewModel
 import com.example.englishlearningapp.ui.screens.settings.SettingsScreen
@@ -84,11 +86,13 @@ fun AppNavGraph(
         // --- Main Content ---
         composable(Routes.HOME) {
             HomeScreen(
-                onGoToTopic = { navController.navigate(Routes.TOPIC) },
+                onGoToTopic = { topicId -> 
+                    navController.navigate(Routes.lessonList(topicId)) 
+                },
                 onGoToProgress = { navController.navigate(Routes.PROGRESS) },
                 onGoToProfile = { navController.navigate(Routes.PROFILE) },
                 onGoToPractice = { navController.navigate("practice/general") },
-                onGoToQuiz = { navController.navigate("quiz/general") }
+                onGoToQuiz = { navController.navigate(Routes.quizPartSelection("general")) }
             )
         }
 
@@ -104,6 +108,7 @@ fun AppNavGraph(
             )
         }
 
+        @Suppress("DEPRECATION")
         composable(Routes.SETTINGS) {
             SettingsScreen(onBack = { navController.popBackStack() })
         }
@@ -118,8 +123,25 @@ fun AppNavGraph(
 
         // --- Quiz ---
         composable(
-            route = Routes.QUIZ,
+            route = Routes.QUIZ_PART_SELECTION,
             arguments = listOf(navArgument("lessonId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
+            QuizPartSelectionScreen(
+                lessonId = lessonId,
+                onBack = { navController.popBackStack() },
+                onPartSelected = { part ->
+                    navController.navigate(Routes.quiz(lessonId, part))
+                }
+            )
+        }
+
+        composable(
+            route = Routes.QUIZ,
+            arguments = listOf(
+                navArgument("lessonId") { type = NavType.StringType },
+                navArgument("part") { type = NavType.IntType }
+            )
         ) { backStackEntry ->
             val viewModel: QuizViewModel = hiltViewModel(backStackEntry)
             QuizScreen(
@@ -139,39 +161,56 @@ fun AppNavGraph(
                 navArgument("total") { type = NavType.IntType }
             )
         ) { backStackEntry ->
+            // Note: This logic assumes the QuizScreen is still in the backstack
+            // If the route was navigated from QUIZ, we find its backstack entry to share the ViewModel
             val quizEntry = remember(backStackEntry) {
-                navController.getBackStackEntry("quiz/{lessonId}")
-            }
-            val quizViewModel: QuizViewModel = hiltViewModel(quizEntry)
-            
-            QuizResultScreen(
-                viewModel = quizViewModel,
-                onRetry = {
-                    quizViewModel.retry()
-                    navController.popBackStack("quiz/{lessonId}", false)
-                },
-                onBackHome = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.HOME) { inclusive = true }
-                    }
-                },
-                onReview = {
-                    navController.navigate(Routes.REVIEW)
+                try {
+                    navController.getBackStackEntry(Routes.QUIZ)
+                } catch (e: Exception) {
+                    null
                 }
-            )
+            }
+            
+            if (quizEntry != null) {
+                val quizViewModel: QuizViewModel = hiltViewModel(quizEntry)
+                QuizResultScreen(
+                    viewModel = quizViewModel,
+                    onRetry = {
+                        quizViewModel.retry()
+                        navController.popBackStack()
+                    },
+                    onBackHome = {
+                        navController.navigate(Routes.HOME) {
+                            popUpTo(Routes.HOME) { inclusive = true }
+                        }
+                    },
+                    onReview = {
+                        navController.navigate(Routes.REVIEW)
+                    }
+                )
+            } else {
+                // Fallback if quiz entry is lost
+                Text("Error: Quiz data not found")
+            }
         }
 
-        composable(Routes.REVIEW) {
-            val quizEntry = remember(it) {
-                navController.getBackStackEntry("quiz/{lessonId}")
+        composable(Routes.REVIEW) { backStackEntry ->
+            val quizEntry = remember(backStackEntry) {
+                try {
+                    navController.getBackStackEntry(Routes.QUIZ)
+                } catch (e: Exception) {
+                    null
+                }
             }
-            val quizViewModel: QuizViewModel = hiltViewModel(quizEntry)
+            
             val reviewViewModel: ReviewViewModel = hiltViewModel()
             
-            // Sync wrong questions before showing screen
-            LaunchedEffect(Unit) {
-                val wrongQuestions = quizViewModel.quizResult.value?.wrongQuestions?.map { it.first } ?: emptyList()
-                reviewViewModel.setQuestions(wrongQuestions)
+            if (quizEntry != null) {
+                val quizViewModel: QuizViewModel = hiltViewModel(quizEntry)
+                LaunchedEffect(Unit) {
+                    val wrongQuestions = quizViewModel.quizResult.value?.wrongQuestions?.map { it.first } ?: emptyList()
+                    reviewViewModel.setQuestions(wrongQuestions)
+                }
             }
 
             ReviewScreen(
@@ -180,11 +219,15 @@ fun AppNavGraph(
             )
         }
 
+        composable(Routes.REVIEW_PRACTICE) {
+            ReviewPracticeScreen(onBack = { navController.popBackStack() })
+        }
+
         composable(Routes.PROGRESS) {
             ProgressScreen(
                 onBack = { navController.popBackStack() },
                 onNavigateToMistakes = {
-                    navController.navigate(Routes.REVIEW)
+                    navController.navigate(Routes.REVIEW_PRACTICE)
                 }
             )
         }

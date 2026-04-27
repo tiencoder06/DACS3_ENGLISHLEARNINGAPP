@@ -6,10 +6,12 @@ export type QuestionUsage = "practice" | "quiz" | "both";
 
 export interface Question {
   questionId: string;
+  topicId: string;
   lessonId: string;
   vocabId: string;
   questionType: QuestionType;
   usage: QuestionUsage;
+  title?: string; // Thêm tiêu đề câu hỏi (Ví dụ: Nghe và chọn đáp án đúng)
   questionText: string;
   options: string[];
   correctAnswer: string;

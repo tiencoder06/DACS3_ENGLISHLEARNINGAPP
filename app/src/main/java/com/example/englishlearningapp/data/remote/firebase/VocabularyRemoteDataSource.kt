@@ -67,12 +67,35 @@ class VocabularyRemoteDataSource @Inject constructor(
     suspend fun getVocabulariesByIds(ids: List<String>): List<Vocabulary> {
         if (ids.isEmpty()) return emptyList()
         return try {
-            firestore.collection("vocabularies")
-                .whereIn(FieldPath.documentId(), ids)
+            // Firestore whereIn supports up to 30 IDs. For more, we would need to chunk.
+            val result = mutableListOf<Vocabulary>()
+            ids.chunked(30).forEach { batch ->
+                val snapshot = firestore.collection("vocabularies")
+                    .whereIn(FieldPath.documentId(), batch)
+                    .get()
+                    .await()
+                result.addAll(snapshot.documents.mapNotNull { it.toObject(Vocabulary::class.java)?.apply { id = it.id } })
+            }
+            result
+        } catch (e: Exception) {
+            Log.e("FIREBASE", "Error getting vocab by IDs: ${e.message}")
+            emptyList()
+        }
+    }
+
+    suspend fun getDifficultVocabularies(userId: String): List<Vocabulary> {
+        return try {
+            val difficultWordsSnapshot = firestore.collection("difficult_words")
+                .whereEqualTo("userId", userId)
                 .get()
                 .await()
-                .documents.mapNotNull { it.toObject(Vocabulary::class.java)?.apply { id = it.id } }
+            
+            val ids = difficultWordsSnapshot.documents.mapNotNull { it.getString("vocabId") }
+            if (ids.isEmpty()) return emptyList()
+            
+            getVocabulariesByIds(ids)
         } catch (e: Exception) {
+            Log.e("FIREBASE", "Error getting difficult vocab: ${e.message}")
             emptyList()
         }
     }

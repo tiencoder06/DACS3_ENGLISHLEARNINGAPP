@@ -11,6 +11,7 @@ import javax.inject.Singleton
 interface QuestionRepository {
     suspend fun getQuestions(): List<Question>
     suspend fun getQuestionsByLesson(lessonId: String): List<Question>
+    suspend fun getQuestionsByTopic(topicId: String): List<Question> // Thêm hàm này
 }
 
 @Singleton
@@ -71,6 +72,32 @@ class FirebaseQuestionRepository @Inject constructor(
             questions.filter { it.status == "active" }
         } catch (e: Exception) {
             Log.e("FIREBASE", "Error fetching questions by lesson: ${e.message}")
+            emptyList()
+        }
+    }
+
+    override suspend fun getQuestionsByTopic(topicId: String): List<Question> {
+        return try {
+            Log.d("FIREBASE", "Fetching questions for topicId: $topicId")
+            val result = firestore.collection("questions")
+                .whereEqualTo("topicId", topicId)
+                .get()
+                .await()
+
+            val questions = result.documents.mapNotNull { doc ->
+                try {
+                    val q = doc.toObject(Question::class.java)
+                    q?.id = doc.id
+                    q
+                } catch (e: Exception) {
+                    null
+                }
+            }
+
+            Log.d("FIREBASE", "Loaded questions for topic $topicId: ${questions.size}")
+            questions.filter { it.status == "active" }
+        } catch (e: Exception) {
+            Log.e("FIREBASE", "Error fetching questions by topic: ${e.message}")
             emptyList()
         }
     }
