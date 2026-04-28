@@ -4,11 +4,17 @@ data class User(
     val uid: String = "",
     val email: String = "",
     val fullName: String = "",
-    val role: String = "user", // "admin" or "user"
-    val avatarUrl: String? = null,
-    val level: String = "Người mới bắt đầu",
+    val role: String = "user",
     val streakDays: Int = 0,
     val wordsLearned: Int = 0,
+    val level: String = "Beginner",
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    
+    // New Unified Progress Fields
+    val totalQuizAttempts: Int = 0,
+    val totalScoreSum: Int = 0,
+    val bestScore: Int = 0,
+    val lastScore: Int = 0,
+    val totalCorrectAnswers: Int = 0,
+    val difficultWords: List<String> = emptyList()
 )

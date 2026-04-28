@@ -1,15 +1,17 @@
 package com.example.englishlearningapp.ui.navigation
 
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-
-// Import các màn hình Auth & Profile
 import com.example.englishlearningapp.ui.screens.auth.forgotpassword.ForgotPasswordScreen
 import com.example.englishlearningapp.ui.screens.auth.login.LoginScreen
 import com.example.englishlearningapp.ui.screens.auth.register.RegisterScreen
@@ -17,13 +19,6 @@ import com.example.englishlearningapp.ui.screens.profile.EditProfileScreen
 import com.example.englishlearningapp.ui.screens.profile.ProfileScreen
 import com.example.englishlearningapp.ui.screens.settings.SettingsScreen
 import com.example.englishlearningapp.ui.screens.splash.SplashScreen
-import com.example.englishlearningapp.ui.screens.home.HomeScreen
-
-
-import com.example.englishlearningapp.ui.screens.topic.TopicScreen
-import com.example.englishlearningapp.ui.screens.lesson.LessonScreen
-import com.example.englishlearningapp.ui.screens.vocabulary.VocabularyDetailScreen
-import com.example.englishlearningapp.ui.screens.vocabulary.VocabularyListScreen
 
 @Composable
 fun AppNavGraph(
@@ -35,7 +30,7 @@ fun AppNavGraph(
         startDestination = Routes.SPLASH,
         modifier = modifier
     ) {
-        // --- 1. Luồng Splash & Auth ---
+        // --- Người 1 Screens ---
         composable(Routes.SPLASH) {
             SplashScreen(
                 onNavigateToLogin = {
@@ -58,8 +53,12 @@ fun AppNavGraph(
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 },
-                onGoToRegister = { navController.navigate(Routes.REGISTER) },
-                onGoToForgotPassword = { navController.navigate(Routes.FORGOT_PASSWORD) }
+                onGoToRegister = {
+                    navController.navigate(Routes.REGISTER)
+                },
+                onGoToForgotPassword = {
+                    navController.navigate(Routes.FORGOT_PASSWORD)
+                }
             )
         }
 
@@ -70,37 +69,18 @@ fun AppNavGraph(
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 },
-                onBackToLogin = { navController.popBackStack() }
+                onBackToLogin = {
+                    navController.popBackStack()
+                }
             )
         }
 
         composable(Routes.FORGOT_PASSWORD) {
-            ForgotPasswordScreen(onBackToLogin = { navController.popBackStack() })
-        }
-
-        // --- 2. Luồng Chính (Home & Learning) ---
-        composable(Routes.HOME) {
-            HomeScreen(
-                onGoToTopic = { navController.navigate(Routes.TOPIC) },
-                onGoToProfile = { navController.navigate(Routes.PROFILE) },
-                onGoToProgress = { navController.navigate(Routes.PROGRESS) } // Thêm dòng này vào
+            ForgotPasswordScreen(
+                onBackToLogin = { navController.popBackStack() }
             )
         }
 
-        composable(Routes.TOPIC) {
-            TopicScreen(navController = navController)
-        }
-
-        // Truyền topicId từ TopicScreen sang LessonScreen
-        composable(
-            route = "lesson/{topicId}",
-            arguments = listOf(navArgument("topicId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val topicId = backStackEntry.arguments?.getString("topicId") ?: ""
-            LessonScreen(navController = navController, topicId = topicId)
-        }
-
-        // --- 3. Luồng Cá nhân & Cài đặt ---
         composable(Routes.PROFILE) {
             ProfileScreen(
                 onEditProfileClick = { navController.navigate(Routes.EDIT_PROFILE) },
@@ -114,7 +94,9 @@ fun AppNavGraph(
         }
 
         composable(Routes.EDIT_PROFILE) {
-            EditProfileScreen(onBack = { navController.popBackStack() })
+            EditProfileScreen(
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable(Routes.SETTINGS) {
@@ -125,28 +107,134 @@ fun AppNavGraph(
             )
         }
 
-        // --- 4. Luồng Quiz & Progress (Người 3) ---
-        composable("quiz/{lessonId}") { backStackEntry ->
-            val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
-            // Gọi QuizScreen thật ở đây
+        // --- Người 2 & 3 Placeholder Stubs ---
+        composable(Routes.HOME) {
+            HomeScreenStub(
+                onGoToTopic = { navController.navigate(Routes.TOPIC) },
+                onGoToProfile = { navController.navigate(Routes.PROFILE) }
+            )
         }
 
-        composable(Routes.PROGRESS) {
-            // Gọi ProgressScreen thật ở đây
-        }
-        // Thêm màn hình Danh sách từ vựng
-        composable("vocabulary_list/{lessonId}") { backStackEntry ->
-            val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
-            VocabularyListScreen(navController = navController, lessonId = lessonId)
+        composable(Routes.TOPIC) {
+            TopicScreenStub(
+                onTopicClick = { topicId ->
+                    navController.navigate("lesson/$topicId")
+                }
+            )
         }
 
-        // Màn hình chi tiết từ vựng (Flashcards)
         composable(
-            route = "vocabulary_detail/{lessonId}",
+            route = Routes.LESSON,
+            arguments = listOf(navArgument("topicId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val topicId = backStackEntry.arguments?.getString("topicId") ?: ""
+            LessonScreenStub(
+                topicId = topicId,
+                onLessonClick = { lessonId ->
+                    navController.navigate("vocabulary_list/$lessonId")
+                }
+            )
+        }
+
+        composable(
+            route = Routes.VOCABULARY_LIST,
             arguments = listOf(navArgument("lessonId") { type = NavType.StringType })
         ) { backStackEntry ->
             val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
-            VocabularyDetailScreen(navController = navController, lessonId = lessonId)
+            VocabularyListScreenStub(
+                lessonId = lessonId,
+                onStartQuiz = { navController.navigate("quiz/$lessonId") },
+                onStartPractice = { navController.navigate("practice/$lessonId") }
+            )
         }
+
+        composable(
+            route = Routes.PRACTICE,
+            arguments = listOf(navArgument("lessonId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
+            PracticeScreenStub(lessonId = lessonId)
+        }
+
+        composable(
+            route = Routes.QUIZ,
+            arguments = listOf(navArgument("lessonId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
+            QuizScreenStub(lessonId = lessonId)
+        }
+
+        composable(Routes.PROGRESS) {
+            ProgressScreenStub()
+        }
+    }
+}
+
+// --- Stubs for other team members ---
+
+@Composable
+fun HomeScreenStub(onGoToTopic: () -> Unit, onGoToProfile: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Home Screen (Person 2's Task)", style = MaterialTheme.typography.headlineSmall)
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Button(onClick = onGoToTopic) {
+            Text("Go to Topic List (Person 2)")
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Button(
+            onClick = onGoToProfile,
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+        ) {
+            Text("Go to My Profile (Person 1)")
+        }
+    }
+}
+
+@Composable
+fun TopicScreenStub(onTopicClick: (String) -> Unit) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text("Topic Screen Stub (Người 2)")
+    }
+}
+
+@Composable
+fun LessonScreenStub(topicId: String, onLessonClick: (String) -> Unit) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text("Lesson Screen Stub for Topic: $topicId (Người 2)")
+    }
+}
+
+@Composable
+fun VocabularyListScreenStub(lessonId: String, onStartQuiz: () -> Unit, onStartPractice: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text("Vocabulary List Stub for Lesson: $lessonId (Người 2)")
+    }
+}
+
+@Composable
+fun PracticeScreenStub(lessonId: String) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text("Practice Screen Stub for Lesson: $lessonId (Người 3)")
+    }
+}
+
+@Composable
+fun QuizScreenStub(lessonId: String) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text("Quiz Screen Stub for Lesson: $lessonId (Người 3)")
+    }
+}
+
+@Composable
+fun ProgressScreenStub() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text("Progress Screen Stub (Người 3)")
     }
 }
