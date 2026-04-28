@@ -3,8 +3,12 @@ package com.example.englishlearningapp.ui.navigation
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -28,6 +32,8 @@ import com.example.englishlearningapp.ui.screens.vocabulary.VocabularyDetailScre
 import com.example.englishlearningapp.ui.screens.progress.ProgressScreen
 import com.example.englishlearningapp.ui.screens.review.ReviewScreen
 import com.example.englishlearningapp.ui.screens.practice.PracticeScreen
+import com.example.englishlearningapp.ui.screens.placement.PlacementIntroScreen
+import com.example.englishlearningapp.ui.screens.placement.PlacementViewModel
 
 @Composable
 fun AppNavGraph(
@@ -113,6 +119,32 @@ fun AppNavGraph(
         composable(Routes.SETTINGS) {
             SettingsScreen(
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        // --- Placement Test ---
+        composable(Routes.PLACEMENT_INTRO) {
+            val viewModel: PlacementViewModel = hiltViewModel()
+            val uiState by viewModel.uiState.collectAsState()
+
+            LaunchedEffect(uiState.isCompleted) {
+                if (uiState.isCompleted) {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.PLACEMENT_INTRO) { inclusive = true }
+                    }
+                }
+            }
+
+            PlacementIntroScreen(
+                isLoading = uiState.isSaving,
+                errorMessage = uiState.errorMessage,
+                onClearError = { viewModel.clearError() },
+                onStartClick = {
+                    // TODO: Navigate to PLACEMENT_QUESTION in next phase
+                },
+                onSkipClick = {
+                    viewModel.skipPlacement()
+                }
             )
         }
 

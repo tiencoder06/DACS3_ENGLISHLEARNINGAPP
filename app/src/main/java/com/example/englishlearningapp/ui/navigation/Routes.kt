@@ -26,6 +26,11 @@ object Routes {
     const val EDIT_PROFILE = "edit_profile"
     const val SETTINGS = "settings"
 
+    // Placement Test
+    const val PLACEMENT_INTRO = "placement_intro"
+    const val PLACEMENT_QUESTION = "placement_question"
+    const val PLACEMENT_RESULT = "placement_result"
+
     // Helper functions
     fun lessonList(topicId: String) = "lesson/$topicId"
     fun vocabularyList(lessonId: String) = "vocabulary_list/$lessonId"
