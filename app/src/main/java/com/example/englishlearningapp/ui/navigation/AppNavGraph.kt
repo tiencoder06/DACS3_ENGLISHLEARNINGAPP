@@ -33,28 +33,25 @@ import com.example.englishlearningapp.ui.screens.progress.ProgressScreen
 import com.example.englishlearningapp.ui.screens.review.ReviewScreen
 import com.example.englishlearningapp.ui.screens.practice.PracticeScreen
 import com.example.englishlearningapp.ui.screens.placement.PlacementIntroScreen
+import com.example.englishlearningapp.ui.screens.placement.PlacementQuestionScreen
 import com.example.englishlearningapp.ui.screens.placement.PlacementViewModel
+import com.example.englishlearningapp.utils.TextToSpeechHelper
 
 @Composable
 fun AppNavGraph(
     modifier: Modifier = Modifier,
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    ttsHelper: TextToSpeechHelper
 ) {
     NavHost(
         navController = navController,
         startDestination = Routes.SPLASH,
         modifier = modifier
     ) {
-        // --- Người 1 Screens ---
         composable(Routes.SPLASH) {
             SplashScreen(
-                onNavigateToLogin = {
-                    navController.navigate(Routes.LOGIN) {
-                        popUpTo(Routes.SPLASH) { inclusive = true }
-                    }
-                },
-                onNavigateToHome = {
-                    navController.navigate(Routes.HOME) {
+                onNavigate = { destination ->
+                    navController.navigate(destination) {
                         popUpTo(Routes.SPLASH) { inclusive = true }
                     }
                 }
@@ -64,7 +61,11 @@ fun AppNavGraph(
         composable(Routes.LOGIN) {
             LoginScreen(
                 onLoginSuccess = {
-                    navController.navigate(Routes.HOME) {
+                    // Sau khi Login, chuyển qua Intro để ViewModel ở đó check hoặc navigate trực tiếp
+                    // Để an toàn, ta chuyển qua PLACEMENT_INTRO, màn hình này sẽ được bọc bởi logic check nếu cần
+                    // Hoặc đơn giản là chuyển đến HOME nếu user cũ, PLACEMENT_INTRO nếu user mới.
+                    // Ở đây ta chuyển đến PLACEMENT_INTRO để bắt đầu luồng check.
+                    navController.navigate(Routes.PLACEMENT_INTRO) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
                 },
@@ -80,8 +81,8 @@ fun AppNavGraph(
         composable(Routes.REGISTER) {
             RegisterScreen(
                 onRegisterSuccess = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    navController.navigate(Routes.PLACEMENT_INTRO) {
+                        popUpTo(Routes.REGISTER) { inclusive = true }
                     }
                 },
                 onBackToLogin = {
@@ -140,11 +141,36 @@ fun AppNavGraph(
                 errorMessage = uiState.errorMessage,
                 onClearError = { viewModel.clearError() },
                 onStartClick = {
-                    // TODO: Navigate to PLACEMENT_QUESTION in next phase
+                    navController.navigate(Routes.PLACEMENT_QUESTION)
                 },
                 onSkipClick = {
                     viewModel.skipPlacement()
                 }
+            )
+        }
+
+        composable(Routes.PLACEMENT_QUESTION) {
+            val viewModel: PlacementViewModel = hiltViewModel() 
+            val uiState by viewModel.uiState.collectAsState()
+
+            LaunchedEffect(uiState.isCompleted) {
+                if (uiState.isCompleted) {
+                    // Tạm thời về HOME vì chưa có RESULT screen
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.PLACEMENT_INTRO) { inclusive = true }
+                    }
+                }
+            }
+
+            PlacementQuestionScreen(
+                uiState = uiState,
+                ttsHelper = ttsHelper,
+                onAnswerSelected = { viewModel.selectAnswer(it) },
+                onNextClick = { viewModel.goToNextQuestion() },
+                onBackClick = { viewModel.goToPreviousQuestion() },
+                onSubmitClick = { viewModel.submitPlacement() },
+                onNavigateBack = { navController.popBackStack() },
+                onClearError = { viewModel.clearError() }
             )
         }
 

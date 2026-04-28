@@ -10,10 +10,16 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import com.example.englishlearningapp.ui.app.EnglishLearningApp
 import com.example.englishlearningapp.ui.theme.EnglishLearningAppTheme
+import com.example.englishlearningapp.utils.TextToSpeechHelper
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var ttsHelper: TextToSpeechHelper
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -31,8 +37,13 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                EnglishLearningApp()
+                EnglishLearningApp(ttsHelper = ttsHelper)
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        ttsHelper.shutdown()
     }
 }

@@ -13,25 +13,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.englishlearningapp.R
-import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(
-    onNavigateToLogin: () -> Unit,
-    onNavigateToHome: () -> Unit
+    viewModel: SplashViewModel = hiltViewModel(),
+    onNavigate: (String) -> Unit
 ) {
     var startAnimation by remember { mutableStateOf(false) }
+    val destination by viewModel.destination.collectAsState()
 
     LaunchedEffect(Unit) {
         startAnimation = true
-        delay(2000)
-        val currentUser = FirebaseAuth.getInstance().currentUser
-        if (currentUser != null) {
-            onNavigateToHome()
-        } else {
-            onNavigateToLogin()
+        viewModel.checkDestination()
+    }
+
+    LaunchedEffect(destination) {
+        destination?.let {
+            delay(1500) // Ensure animation shows for a bit
+            onNavigate(it)
         }
     }
 
@@ -47,7 +49,6 @@ fun SplashScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // Thay đổi ic_launcher bằng logo thật của bạn nếu có
                 Image(
                     painter = painterResource(id = R.drawable.ic_launcher_foreground),
                     contentDescription = "App Logo",
