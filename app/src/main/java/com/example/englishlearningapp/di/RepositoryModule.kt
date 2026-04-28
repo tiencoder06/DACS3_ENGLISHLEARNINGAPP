@@ -40,4 +40,10 @@ abstract class RepositoryModule {
     abstract fun bindQuestionRepository(
         impl: FirebaseQuestionRepository
     ): QuestionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPlacementRepository(
+        impl: PlacementRepositoryImpl
+    ): PlacementRepository
 }

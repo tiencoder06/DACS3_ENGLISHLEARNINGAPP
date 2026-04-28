@@ -21,5 +21,16 @@ data class User(
     val bestScore: Int = 0,
     val lastScore: Int = 0,
     val totalCorrectAnswers: Int = 0,
-    val difficultWords: List<String> = emptyList()
+    val difficultWords: List<String> = emptyList(),
+
+    // Placement Test Fields
+    val placementCompleted: Boolean = false,
+    val placementSkipped: Boolean = false,
+    val placementScore: Int = 0,
+    val placementLevel: String = "Beginner",
+    val placementStrongSkill: String = "",
+    val placementWeakSkill: String = "",
+    val recommendedStartTopicId: String = "",
+    val recommendedStartLessonId: String = "",
+    val placementTakenAt: Timestamp? = null
 )
