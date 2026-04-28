@@ -23,6 +23,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.englishlearningapp.data.model.User
 import com.example.englishlearningapp.ui.navigation.Routes
 import com.example.englishlearningapp.utils.Resource
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,7 +33,8 @@ fun ProfileScreen(
     onEditProfileClick: () -> Unit,
     onSecurityClick: () -> Unit,
     onSettingsClick: () -> Unit,
-    onLogoutSuccess: () -> Unit
+    onLogoutSuccess: () -> Unit,
+    onNavigateToPlacement: () -> Unit
 ) {
     val profileState by viewModel.userProfile.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -102,6 +105,14 @@ fun ProfileScreen(
                             ProfileHeader(user = user, onEditClick = onEditProfileClick)
                         }
 
+                        // Placement Test Result Section
+                        item {
+                            PlacementResultCard(
+                                user = user,
+                                onRetakeClick = onNavigateToPlacement
+                            )
+                        }
+
                         item {
                             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                 Row(
@@ -163,6 +174,147 @@ fun ProfileScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun PlacementResultCard(user: User, onRetakeClick: () -> Unit) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = Color.White)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(Color(0xFF004ac6).copy(alpha = 0.1f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Assignment, contentDescription = null, tint = Color(0xFF004ac6))
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Trình độ tiếng Anh",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (user.placementCompleted) {
+                        Text(
+                            text = "Dựa trên bài kiểm tra đầu vào",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            if (user.placementCompleted) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    Column {
+                        Text(
+                            text = user.placementLevel,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF004ac6)
+                        )
+                        Text(
+                            text = "Điểm số: ${user.placementScore}/100",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray
+                        )
+                    }
+                    
+                    if (user.placementTakenAt != null) {
+                        val date = user.placementTakenAt.toDate()
+                        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                        Text(
+                            text = "Ngày thi: ${sdf.format(date)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.LightGray
+                        )
+                    }
+                }
+
+                if (!user.placementSkipped && user.placementStrongSkill.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Divider(color = Color.LightGray.copy(alpha = 0.3f))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        SkillLabel(label = "Mạnh: ${formatSkillName(user.placementStrongSkill)}", isStrong = true)
+                        if (user.placementWeakSkill.isNotEmpty() && user.placementWeakSkill != "Balanced") {
+                            SkillLabel(label = "Cần học: ${formatSkillName(user.placementWeakSkill)}", isStrong = false)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+                
+                Button(
+                    onClick = onRetakeClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF004ac6).copy(alpha = 0.05f), contentColor = Color(0xFF004ac6)),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Làm lại kiểm tra", fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Text(
+                    text = "Bạn chưa kiểm tra trình độ đầu vào để nhận lộ trình học phù hợp.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = onRetakeClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Kiểm tra ngay", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SkillLabel(label: String, isStrong: Boolean) {
+    Surface(
+        color = if (isStrong) Color(0xFFE8F5E9) else Color(0xFFFFF3E0),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isStrong) Color(0xFF2E7D32) else Color(0xFFE65100),
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+private fun formatSkillName(skill: String): String {
+    return when (skill) {
+        "vocabulary_grammar" -> "Từ vựng"
+        "listening" -> "Nghe"
+        "sentence_usage" -> "Ứng dụng"
+        "Balanced" -> "Cân bằng"
+        else -> skill
     }
 }
 

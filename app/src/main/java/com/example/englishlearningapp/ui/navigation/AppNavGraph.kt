@@ -105,6 +105,9 @@ fun AppNavGraph(
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0) { inclusive = true }
                     }
+                },
+                onNavigateToPlacement = {
+                    navController.navigate(Routes.PLACEMENT_INTRO)
                 }
             )
         }
@@ -180,11 +183,9 @@ fun AppNavGraph(
             PlacementResultScreen(
                 result = uiState.result,
                 onStartLearningClick = { topicId, _ ->
-                    // Quan trọng: Điều hướng về HOME trước để làm gốc
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.PLACEMENT_INTRO) { inclusive = true }
                     }
-                    // Sau đó mới mở màn hình Lesson nếu có ID
                     if (topicId.isNotEmpty()) {
                         navController.navigate(Routes.lessonList(topicId))
                     }
@@ -202,7 +203,9 @@ fun AppNavGraph(
             HomeScreen(
                 onGoToTopic = { navController.navigate(Routes.TOPIC) },
                 onGoToProgress = { navController.navigate(Routes.PROGRESS) },
-                onGoToProfile = { navController.navigate(Routes.PROFILE) }
+                onGoToProfile = { navController.navigate(Routes.PROFILE) },
+                onGoToPlacement = { navController.navigate(Routes.PLACEMENT_INTRO) },
+                onGoToLesson = { topicId -> navController.navigate(Routes.lessonList(topicId)) }
             )
         }
 

@@ -11,6 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,6 +22,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.englishlearningapp.data.model.User
+import com.example.englishlearningapp.ui.navigation.Routes
 import com.example.englishlearningapp.ui.theme.Primary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,8 +32,14 @@ import com.example.englishlearningapp.ui.theme.Primary
 fun HomeScreen(
     onGoToTopic: () -> Unit,
     onGoToProgress: () -> Unit,
-    onGoToProfile: () -> Unit
+    onGoToProfile: () -> Unit,
+    onGoToPlacement: () -> Unit,
+    onGoToLesson: (String) -> Unit,
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+    val user = uiState.user
+
     Scaffold(
         containerColor = Color(0xFFFAF8FF),
         topBar = {
@@ -66,7 +77,7 @@ fun HomeScreen(
         ) {
             // Welcome Header
             Text(
-                text = "Chào mừng trở lại!",
+                text = "Chào mừng ${user?.fullName ?: ""} trở lại!",
                 style = MaterialTheme.typography.bodyLarge,
                 color = Color.Gray
             )
@@ -76,6 +87,25 @@ fun HomeScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+
+            // Placement Recommendation Section
+            if (user != null) {
+                PlacementRecommendationCard(
+                    user = user,
+                    onStartClick = {
+                        if (user.placementCompleted) {
+                            if (user.recommendedStartTopicId.isNotEmpty()) {
+                                onGoToLesson(user.recommendedStartTopicId)
+                            } else {
+                                onGoToTopic()
+                            }
+                        } else {
+                            onGoToPlacement()
+                        }
+                    }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             // Main Action Card (Topic)
             MainActionCard(
@@ -133,6 +163,117 @@ fun HomeScreen(
 }
 
 @Composable
+fun PlacementRecommendationCard(
+    user: User,
+    onStartClick: () -> Unit
+) {
+    val isSkipped = user.placementSkipped
+    val isCompleted = user.placementCompleted
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = when {
+                !isCompleted -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
+                isSkipped -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+                else -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+            }
+        )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = when {
+                            !isCompleted -> "Kiểm tra trình độ đầu vào"
+                            isSkipped -> "Bắt đầu từ trình độ Cơ bản"
+                            else -> "Lộ trình phù hợp cho bạn"
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    if (isCompleted) {
+                        if (isSkipped) {
+                            Text(
+                                text = "Bạn đã bỏ qua bài kiểm tra trình độ.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Text(
+                                text = "Trình độ: ${user.placementLevel} (${user.placementScore}%)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "Làm bài kiểm tra ngắn để nhận lộ trình phù hợp hơn.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = when {
+                        !isCompleted -> Icons.Default.Quiz
+                        isSkipped -> Icons.Default.DirectionsRun
+                        else -> Icons.Default.Stars
+                    },
+                    contentDescription = null,
+                    tint = when {
+                        !isCompleted -> MaterialTheme.colorScheme.tertiary
+                        isSkipped -> MaterialTheme.colorScheme.outline
+                        else -> MaterialTheme.colorScheme.primary
+                    },
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+            
+            if (isCompleted && !isSkipped && user.placementWeakSkill.isNotEmpty() && user.placementWeakSkill != "Balanced") {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Cần cải thiện: ${formatSkillName(user.placementWeakSkill)}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Button(
+                onClick = onStartClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = when {
+                        !isCompleted -> MaterialTheme.colorScheme.tertiary
+                        isSkipped -> MaterialTheme.colorScheme.secondary
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                )
+            ) {
+                Text(if (isCompleted) "Bắt đầu học" else "Làm ngay")
+            }
+        }
+    }
+}
+
+private fun formatSkillName(skill: String): String {
+    return when (skill) {
+        "vocabulary_grammar" -> "Từ vựng & Ngữ pháp"
+        "listening" -> "Nghe hiểu"
+        "sentence_usage" -> "Ứng dụng câu"
+        else -> skill
+    }
+}
+
+@Composable
 fun MainActionCard(
     title: String,
     subtitle: String,
@@ -149,14 +290,6 @@ fun MainActionCard(
         color = color
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Decorative circles
-            Box(
-                modifier = Modifier
-                    .size(150.dp)
-                    .offset(x = 220.dp, y = (-50).dp)
-                    .background(Color.White.copy(alpha = 0.1f), CircleShape)
-            )
-            
             Row(
                 modifier = Modifier
                     .fillMaxSize()

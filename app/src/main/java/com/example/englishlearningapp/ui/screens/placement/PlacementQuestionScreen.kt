@@ -1,5 +1,6 @@
 package com.example.englishlearningapp.ui.screens.placement
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -33,6 +34,13 @@ fun PlacementQuestionScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val currentQuestion = uiState.questions.getOrNull(uiState.currentQuestionIndex)
     val isLastQuestion = uiState.currentQuestionIndex == uiState.questions.size - 1
+    
+    var showExitDialog by remember { mutableStateOf(false) }
+
+    // Handle System Back Button
+    BackHandler {
+        showExitDialog = true
+    }
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
@@ -41,12 +49,33 @@ fun PlacementQuestionScreen(
         }
     }
 
+    if (showExitDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog = false },
+            title = { Text("Thoát bài kiểm tra?") },
+            text = { Text("Tiến trình hiện tại sẽ không được lưu nếu bạn thoát.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showExitDialog = false
+                    onNavigateBack()
+                }) {
+                    Text("Thoát", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitDialog = false }) {
+                    Text("Tiếp tục làm bài")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Kiểm tra đầu vào") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { showExitDialog = true }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 }
@@ -116,12 +145,7 @@ fun PlacementQuestionScreen(
                             if (currentQuestion.section == "listening" || currentQuestion.audioText.isNotEmpty()) {
                                 Button(
                                     onClick = {
-                                        if (currentQuestion.audioUrl.isNotEmpty()) {
-                                            // TODO: Integrate AudioPlayer if available, for now TTS fallback
-                                            ttsHelper.speak(currentQuestion.audioText.ifEmpty { currentQuestion.questionText })
-                                        } else {
-                                            ttsHelper.speak(currentQuestion.audioText.ifEmpty { currentQuestion.questionText })
-                                        }
+                                        ttsHelper.speak(currentQuestion.audioText.ifEmpty { currentQuestion.questionText })
                                     },
                                     modifier = Modifier.padding(bottom = 16.dp)
                                 ) {
