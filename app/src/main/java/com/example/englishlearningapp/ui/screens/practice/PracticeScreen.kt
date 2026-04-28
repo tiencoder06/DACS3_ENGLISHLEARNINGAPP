@@ -30,6 +30,7 @@ import java.util.*
 @Composable
 fun PracticeScreen(
     onBack: () -> Unit,
+    onFinish: () -> Unit, // Đã thêm tham số này để fix lỗi
     viewModel: PracticeViewModel = hiltViewModel()
 ) {
     val questions by viewModel.questions
@@ -52,7 +53,7 @@ fun PracticeScreen(
             wrongCount = viewModel.wrongQuestionsCount,
             onRetry = { viewModel.retry() },
             onRetryMistakes = { viewModel.retryMistakes() },
-            onBack = onBack
+            onBack = onFinish // Sử dụng onFinish để quay về Home
         )
     } else {
         Scaffold(

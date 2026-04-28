@@ -1,18 +1,12 @@
 package com.example.englishlearningapp.worker
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import android.os.Build
-import androidx.core.app.NotificationCompat
+import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.example.englishlearningapp.MainActivity
-import com.example.englishlearningapp.R
 import com.example.englishlearningapp.data.model.User
+import com.example.englishlearningapp.utils.NotificationHelper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.assisted.Assisted
@@ -23,70 +17,62 @@ import java.util.*
 
 @HiltWorker
 class ReminderWorker @AssistedInject constructor(
-    @Assisted context: Context,
+    @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
     private val firestore: FirebaseFirestore,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val notificationHelper: NotificationHelper
 ) : CoroutineWorker(context, workerParams) {
 
+    companion object {
+        private const val TAG = "ReminderDebug"
+        const val TAG_TEST = "test_reminder"
+        const val TAG_IMMEDIATE = "immediate_reminder"
+    }
+
     override suspend fun doWork(): Result {
-        val uid = auth.currentUser?.uid ?: return Result.success()
+        Log.d(TAG, "ReminderWorker: Bắt đầu thực hiện tác vụ (ID: $id)")
         
+        val isTest = tags.contains(TAG_TEST)
+        val isImmediate = tags.contains(TAG_IMMEDIATE)
+
+        // Nếu là lệnh Test, bỏ qua kiểm tra Firestore
+        if (isImmediate || isTest) {
+            Log.d(TAG, "ReminderWorker: Chế độ TEST - Gửi thông báo ngay.")
+            notificationHelper.showNotification(
+                "Nhắc học tiếng Anh",
+                "Đây là thông báo thử nghiệm để kiểm tra hệ thống."
+            )
+            return Result.success()
+        }
+
+        val uid = auth.currentUser?.uid ?: return Result.success()
+
         return try {
             val document = firestore.collection("users").document(uid).get().await()
             val user = document.toObject(User::class.java)
-            
+
             if (user != null) {
                 val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val today = dateFormat.format(Date())
                 
+                Log.d(TAG, "ReminderWorker: Kiểm tra ngày học. Hôm nay: $today, Lần cuối: ${user.lastStudyDate}")
+
                 if (user.lastStudyDate != today) {
-                    sendNotification(user)
+                    val body = if (user.difficultWords.isNotEmpty()) 
+                        "Bạn còn một số từ khó cần ôn tập lại hôm nay."
+                    else "Hôm nay bạn chưa học bài nào. Hãy tiếp tục chuỗi học nhé!"
+                    
+                    notificationHelper.showNotification("Nhắc học tiếng Anh", body)
+                    Log.d(TAG, "ReminderWorker: Đã gửi thông báo thật.")
+                } else {
+                    Log.d(TAG, "ReminderWorker: Hôm nay bạn học rồi, không làm phiền nữa.")
                 }
             }
             Result.success()
         } catch (e: Exception) {
+            Log.e(TAG, "ReminderWorker: Lỗi kết nối Firestore: ${e.message}")
             Result.failure()
         }
-    }
-
-    private fun sendNotification(user: User) {
-        val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = "daily_reminder_channel"
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "Nhắc nhở học tập",
-                NotificationManager.IMPORTANCE_DEFAULT
-            )
-            notificationManager.createNotificationChannel(channel)
-        }
-
-        val intent = Intent(applicationContext, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            applicationContext, 
-            0, 
-            intent, 
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        val body = when {
-            user.difficultWords.isNotEmpty() -> "Bạn còn một số từ khó cần ôn lại hôm nay."
-            else -> "Hôm nay bạn chưa học bài nào. Hãy tiếp tục chuỗi học nhé!"
-        }
-
-        val notification = NotificationCompat.Builder(applicationContext, channelId)
-            .setSmallIcon(android.R.drawable.ic_dialog_info) // Fallback icon
-            .setContentTitle("Nhắc học tiếng Anh")
-            .setContentText(body)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .build()
-
-        notificationManager.notify(1, notification)
     }
 }

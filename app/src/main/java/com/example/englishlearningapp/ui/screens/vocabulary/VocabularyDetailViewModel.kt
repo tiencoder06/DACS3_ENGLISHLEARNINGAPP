@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.englishlearningapp.data.model.Vocabulary
 import com.example.englishlearningapp.data.repository.AuthRepository
+import com.example.englishlearningapp.data.repository.UserRepository
 import com.example.englishlearningapp.data.repository.VocabularyRepository
 import com.example.englishlearningapp.utils.TextToSpeechHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,6 +19,7 @@ import javax.inject.Inject
 class VocabularyDetailViewModel @Inject constructor(
     private val repository: VocabularyRepository,
     private val authRepository: AuthRepository,
+    private val userRepository: UserRepository,
     private val ttsHelper: TextToSpeechHelper
 ) : ViewModel() {
 
@@ -73,6 +75,8 @@ class VocabularyDetailViewModel @Inject constructor(
             try {
                 repository.markVocabularyAsLearned(vocabulary)
                 _isLearned.value = true
+                // Record study activity for streak logic
+                userRepository.recordStudyActivity()
             } catch (e: Exception) {
                 Log.e("VocabDetailVM", "Error marking as learned", e)
             }

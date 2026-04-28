@@ -1,11 +1,6 @@
 package com.example.englishlearningapp.di
 
-import com.example.englishlearningapp.data.repository.LessonRepository
-import com.example.englishlearningapp.data.repository.LessonRepositoryImpl
-import com.example.englishlearningapp.data.repository.TopicRepository
-import com.example.englishlearningapp.data.repository.TopicRepositoryImpl
-import com.example.englishlearningapp.data.repository.VocabularyRepository
-import com.example.englishlearningapp.data.repository.VocabularyRepositoryImpl
+import com.example.englishlearningapp.data.repository.*
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -19,18 +14,30 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindLessonRepository(
-        lessonRepositoryImpl: LessonRepositoryImpl
+        impl: LessonRepositoryImpl
     ): LessonRepository
 
     @Binds
     @Singleton
     abstract fun bindTopicRepository(
-        topicRepositoryImpl: TopicRepositoryImpl
+        impl: TopicRepositoryImpl
     ): TopicRepository
 
     @Binds
     @Singleton
     abstract fun bindVocabularyRepository(
-        vocabularyRepositoryImpl: VocabularyRepositoryImpl
+        impl: VocabularyRepositoryImpl
     ): VocabularyRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindQuizRepository(
+        impl: FirebaseQuizRepository
+    ): QuizRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindQuestionRepository(
+        impl: FirebaseQuestionRepository
+    ): QuestionRepository
 }

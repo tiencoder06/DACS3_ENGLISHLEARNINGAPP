@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.englishlearningapp.data.model.User
+import com.example.englishlearningapp.ui.navigation.Routes
 import com.example.englishlearningapp.utils.Resource
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,6 +29,7 @@ import com.example.englishlearningapp.utils.Resource
 fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
     onEditProfileClick: () -> Unit,
+    onSecurityClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onLogoutSuccess: () -> Unit
 ) {
@@ -101,21 +103,30 @@ fun ProfileScreen(
                         }
 
                         item {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    StatCard(
+                                        modifier = Modifier.weight(1f),
+                                        title = "Chuỗi hiện tại",
+                                        value = "${user.streakDays} ngày",
+                                        icon = Icons.Default.LocalFireDepartment,
+                                        iconColor = Color(0xFFFF9800)
+                                    )
+                                    StatCard(
+                                        modifier = Modifier.weight(1f),
+                                        title = "Kỷ lục dài nhất",
+                                        value = "${user.longestStreak} ngày",
+                                        icon = Icons.Default.EmojiEvents,
+                                        iconColor = Color(0xFFFFD700)
+                                    )
+                                }
                                 StatCard(
-                                    modifier = Modifier.weight(1f),
-                                    title = "Chuỗi ngày",
-                                    value = "${user.streakDays} ngày",
-                                    icon = Icons.Default.DateRange,
-                                    iconColor = Color(0xFF006c49)
-                                )
-                                StatCard(
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.fillMaxWidth(),
                                     title = "Từ đã học",
-                                    value = "${user.wordsLearned}",
+                                    value = "${user.wordsLearned} từ",
                                     icon = Icons.Default.CheckCircle,
                                     iconColor = Color(0xFF004ac6)
                                 )
@@ -130,10 +141,9 @@ fun ProfileScreen(
                             ) {
                                 Column(modifier = Modifier.padding(8.dp)) {
                                     MenuItem("Thông tin cá nhân", Icons.Default.Person, onEditProfileClick)
-                                    MenuItem("Bảo mật", Icons.Default.Lock, {})
-                                    MenuItem("Cài đặt âm thanh", Icons.Default.Settings, onSettingsClick)
-                                    MenuItem("Thông báo", Icons.Default.Notifications, {})
-                                    MenuItem("Trợ giúp", Icons.Default.Info, {})
+                                    MenuItem("Bảo mật", Icons.Default.Lock, onSecurityClick)
+                                    MenuItem("Thông báo nhắc nhở", Icons.Default.Notifications, onSettingsClick)
+                                    MenuItem("Trợ giúp & Giới thiệu", Icons.Default.Info, {})
                                 }
                             }
                         }

@@ -33,6 +33,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.englishlearningapp.data.model.Topic
+import com.example.englishlearningapp.ui.navigation.Routes
 import com.example.englishlearningapp.ui.theme.Primary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,7 +51,7 @@ fun TopicScreen(
                 title = {
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         Text(
-                            "Linguist",
+                            "LingoPro",
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = Primary
@@ -59,20 +60,13 @@ fun TopicScreen(
                     }
                 },
                 navigationIcon = {
-                    Box(modifier = Modifier.padding(start = 16.dp)) {
-                        Surface(
-                            modifier = Modifier.size(40.dp),
-                            shape = CircleShape,
-                            color = Color.LightGray
-                        ) {
-                            // Avatar placeholder
-                            Icon(Icons.Default.Person, contentDescription = "Profile", modifier = Modifier.padding(8.dp))
-                        }
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Quay lại")
                     }
                 },
                 actions = {
                     IconButton(onClick = { /* TODO */ }, modifier = Modifier.padding(end = 8.dp)) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Notifications")
+                        Icon(Icons.Default.Notifications, contentDescription = "Thông báo")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -91,14 +85,14 @@ fun TopicScreen(
                     .padding(horizontal = 24.dp, vertical = 16.dp)
             ) {
                 Text(
-                    text = "Explore Topics",
+                    text = "Khám phá Chủ đề",
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 32.sp
                     )
                 )
                 Text(
-                    text = "Choose a category to start your learning journey",
+                    text = "Chọn một danh mục để bắt đầu hành trình học tập",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.Gray
                 )
@@ -107,7 +101,7 @@ fun TopicScreen(
             when (val state = uiState) {
                 is TopicUiState.Loading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(color = Primary)
                     }
                 }
                 is TopicUiState.Success -> {
@@ -118,18 +112,20 @@ fun TopicScreen(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        itemsIndexed(state.topics) { index, topic ->
-                            TopicCardItem(
-                                topic = topic,
-                                index = index,
-                                onClick = { navController.navigate("lesson/${topic.topicId}") }
-                            )
+                        state.topics.let { topics ->
+                            itemsIndexed(topics) { index, topic ->
+                                TopicCardItem(
+                                    topic = topic,
+                                    index = index,
+                                    onClick = { navController.navigate(Routes.lessonList(topic.topicId)) }
+                                )
+                            }
                         }
                     }
                 }
                 is TopicUiState.Error -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(text = state.message, color = MaterialTheme.colorScheme.error)
+                        Text(text = "Có lỗi xảy ra: ${state.message}", color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
@@ -143,7 +139,6 @@ fun TopicCardItem(
     index: Int,
     onClick: () -> Unit
 ) {
-    // Glow colors based on index or category
     val glowColors = listOf(
         Color(0xFF2563EB), // Blue
         Color(0xFFF59E0B), // Orange
@@ -152,7 +147,6 @@ fun TopicCardItem(
     )
     val glowColor = glowColors[index % glowColors.size]
     
-    // Icon mapping
     val icon = when (topic.iconType.lowercase()) {
         "work" -> Icons.Default.Work
         "flight" -> Icons.Default.Flight
@@ -167,7 +161,7 @@ fun TopicCardItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp) // Chiều cao được điều chỉnh lại cho gọn hơn sau khi bỏ progress
+            .height(200.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(28.dp),
         color = Color.White,
@@ -194,7 +188,6 @@ fun TopicCardItem(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Top Row: Icon and Level Badge
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -218,7 +211,7 @@ fun TopicCardItem(
                         shape = CircleShape
                     ) {
                         Text(
-                            text = "Level $level",
+                            text = "Cấp độ $level",
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                             color = Color.DarkGray
@@ -226,7 +219,6 @@ fun TopicCardItem(
                     }
                 }
 
-                // Middle: Title and Subtitle
                 Column(modifier = Modifier.padding(bottom = 8.dp)) {
                     Text(
                         text = topic.name,

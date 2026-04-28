@@ -13,19 +13,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,6 +30,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.englishlearningapp.data.model.Vocabulary
+import com.example.englishlearningapp.ui.navigation.Routes
 import com.example.englishlearningapp.ui.theme.Primary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,6 +58,14 @@ fun VocabularyListScreen(
     Scaffold(
         topBar = {
             VocabularyTopBar(navController)
+        },
+        bottomBar = {
+            if (!isLoading && vocabularies.isNotEmpty()) {
+                VocabularyActionButtons(
+                    onPracticeClick = { navController.navigate(Routes.practice(lessonId)) },
+                    onQuizClick = { navController.navigate(Routes.quiz(lessonId)) }
+                )
+            }
         },
         containerColor = Color(0xFFFAF8FF)
     ) { paddingValues ->
@@ -90,13 +96,60 @@ fun VocabularyListScreen(
                     VocabCard(
                         vocab = vocab,
                         onSoundClick = { viewModel.playVocabularySound(vocab) },
-                        onItemClick = { navController.navigate("vocabulary_detail/$lessonId") }
+                        onItemClick = { navController.navigate(Routes.vocabularyDetail(lessonId)) }
                     )
                 }
                 
                 item {
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(80.dp)) // Space for bottom buttons
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun VocabularyActionButtons(
+    onPracticeClick: () -> Unit,
+    onQuizClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(16.dp),
+        color = Color.White,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(20.dp)
+                .navigationBarsPadding(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedButton(
+                onClick = onPracticeClick,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                border = androidx.compose.foundation.BorderStroke(2.dp, Primary)
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("LUYỆN TẬP", fontWeight = FontWeight.Bold)
+            }
+
+            Button(
+                onClick = onQuizClick,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Primary)
+            ) {
+                Icon(Icons.Default.Quiz, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("LÀM KIỂM TRA", fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -109,20 +162,15 @@ fun VocabularyTopBar(navController: NavController) {
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Lingo",
+                    "LingoPro",
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black),
                     color = Primary
-                )
-                Text(
-                    "Premium",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black),
-                    color = Color.Black
                 )
             }
         },
         navigationIcon = {
             IconButton(onClick = { navController.popBackStack() }) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
             }
         },
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent)
@@ -138,7 +186,7 @@ fun VocabularyHeader() {
     ) {
         Column {
             Text(
-                "Vocabulary List",
+                "Danh sách Từ vựng",
                 style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.ExtraBold)
             )
         }
@@ -155,7 +203,7 @@ fun VocabularySearchBar(query: String, onQueryChange: (String) -> Unit) {
             .fillMaxWidth()
             .shadow(4.dp, RoundedCornerShape(24.dp))
             .background(Color.White, RoundedCornerShape(24.dp)),
-        placeholder = { Text("Search your vocabulary...", color = Color.Gray) },
+        placeholder = { Text("Tìm kiếm từ vựng...", color = Color.Gray) },
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Primary) },
         shape = RoundedCornerShape(24.dp),
         colors = OutlinedTextFieldDefaults.colors(
@@ -209,14 +257,14 @@ fun VocabCard(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                            contentDescription = "Speak",
+                            contentDescription = "Phát âm",
                             tint = Primary,
                             modifier = Modifier.padding(8.dp).size(20.dp)
                         )
                     }
                 }
                 Text(
-                    text = "/${vocab.word.lowercase()}/", // Giả định phonetics
+                    text = "/${vocab.word.lowercase()}/",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Primary.copy(alpha = 0.7f)
                 )

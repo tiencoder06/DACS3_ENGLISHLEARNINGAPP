@@ -116,7 +116,8 @@ class PracticeViewModel @Inject constructor(
 
             val type = types.random()
             val options = mutableListOf<String>()
-            val distractors = vocabs.filter { it.id != vocab.id }.shuffled().take(3)
+            // FIX: Đổi .id thành .vocabId
+            val distractors = vocabs.filter { it.vocabId != vocab.vocabId }.shuffled().take(3)
 
             when (type) {
                 PracticeType.EN_TO_VI -> {
@@ -177,7 +178,7 @@ class PracticeViewModel @Inject constructor(
     fun checkAnswer() {
         if (_isAnswered.value) return
         
-        val currentQuestion = _questions.value.getOrNull(_currentIndex.value) ?: return
+        val currentQuestion = _questions.value.getOrNull(_currentIndex.intValue) ?: return
         val correct = when (currentQuestion.type) {
             PracticeType.FILL_BLANK -> _userAnswer.value.trim().equals(currentQuestion.correctAnswer, ignoreCase = true)
             PracticeType.SENTENCE_REORDER -> _userAnswer.value.trim() == currentQuestion.correctAnswer.trim()
@@ -187,7 +188,7 @@ class PracticeViewModel @Inject constructor(
         _isCorrect.value = correct
         _isAnswered.value = true
         if (correct) {
-            _correctCount.value++
+            _correctCount.intValue++
         } else {
             _wrongQuestions.add(currentQuestion)
         }
@@ -199,7 +200,7 @@ class PracticeViewModel @Inject constructor(
         val left = _selectedLeft.value
         val right = _selectedRight.value
         if (left != null && right != null) {
-            val currentQuestion = _questions.value[_currentIndex.value]
+            val currentQuestion = _questions.value[_currentIndex.intValue]
             val pair = currentQuestion.matchingPairs.find { it.first == left && it.second == right }
             if (pair != null) {
                 _matchedPairs.add(left)
@@ -209,7 +210,7 @@ class PracticeViewModel @Inject constructor(
                 if (_matchedPairs.size == currentQuestion.matchingPairs.size * 2) {
                     _isCorrect.value = true
                     _isAnswered.value = true
-                    _correctCount.value++
+                    _correctCount.intValue++
                 }
             } else {
                 _wrongLeft.value = left
@@ -229,11 +230,10 @@ class PracticeViewModel @Inject constructor(
     }
 
     fun nextQuestion() {
-        if (_currentIndex.value < _questions.value.size - 1) {
-            _currentIndex.value++
+        if (_currentIndex.intValue < _questions.value.size - 1) {
+            _currentIndex.intValue++
             resetQuestionState()
         } else {
-            // Khi kết thúc bài, thực hiện lưu đồng bộ TRƯỚC khi hiện màn hình kết quả
             saveResultAndFinish()
         }
     }
@@ -254,33 +254,28 @@ class PracticeViewModel @Inject constructor(
         val userId = auth.currentUser?.uid ?: return
         val total = _questions.value.size
         if (total == 0) return
-        val score = (_correctCount.value * 100) / total
+        val score = (_correctCount.intValue * 100) / total
 
         viewModelScope.launch {
-            _isLoading.value = true // Hiện loading để đảm bảo việc lưu hoàn tất
+            _isLoading.value = true
             try {
-                // 1. Cập nhật bảng phân tích tổng quát (user_analytics)
-                quizRepository.syncUserAnalytics(userId, score, _correctCount.value)
-
-                // 2. Lưu lịch sử làm bài chi tiết (study_sessions)
-                quizRepository.logStudySession(userId, "practice", score, _correctCount.value, total)
-
-                // 3. Đồng bộ với bảng quiz_results để ProgressScreen lấy được "Điểm lần cuối"
+                quizRepository.syncUserAnalytics(userId, score, _correctCount.intValue)
+                quizRepository.logStudySession(userId, "practice", score, _correctCount.intValue, total)
                 quizRepository.saveQuizResult(QuizResult(
                     userId = userId,
                     lessonId = lessonId ?: "practice",
                     type = "practice",
                     score = score,
-                    correctCount = _correctCount.value,
+                    correctCount = _correctCount.intValue,
                     totalQuestions = total
                 ))
 
-                // 4. Cập nhật mức độ thuộc từ (word_mastery)
+                // FIX: Đổi .id thành .vocabId
                 _questions.value.forEach { question ->
-                    val vocabId = question.vocabulary.id
-                    if (!vocabId.isNullOrEmpty()) {
-                        val isCorrect = !_wrongQuestions.any { it.vocabulary.id == vocabId }
-                        quizRepository.updateWordMastery(userId, vocabId, isCorrect)
+                    val vocabId = question.vocabulary.vocabId
+                    if (vocabId.isNotEmpty()) {
+                        val isWrong = _wrongQuestions.any { it.vocabulary.vocabId == vocabId }
+                        quizRepository.updateWordMastery(userId, vocabId, !isWrong)
                     }
                 }
                 
@@ -289,14 +284,14 @@ class PracticeViewModel @Inject constructor(
                 Log.e("PRACTICE_DEBUG", "Save Error: ${e.message}")
             } finally {
                 _isLoading.value = false
-                _isFinished.value = true // Hiện màn hình kết quả SAU KHI lưu xong
+                _isFinished.value = true
             }
         }
     }
 
     fun retry() {
-        _currentIndex.value = 0
-        _correctCount.value = 0
+        _currentIndex.intValue = 0
+        _correctCount.intValue = 0
         _isFinished.value = false
         _wrongQuestions.clear()
         resetQuestionState()
@@ -307,8 +302,8 @@ class PracticeViewModel @Inject constructor(
         val mistakes = _wrongQuestions.toList().shuffled()
         _questions.value = mistakes
         _wrongQuestions.clear()
-        _currentIndex.value = 0
-        _correctCount.value = 0
+        _currentIndex.intValue = 0
+        _correctCount.intValue = 0
         _isFinished.value = false
         resetQuestionState()
     }

@@ -5,7 +5,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -19,6 +18,16 @@ import com.example.englishlearningapp.ui.screens.profile.EditProfileScreen
 import com.example.englishlearningapp.ui.screens.profile.ProfileScreen
 import com.example.englishlearningapp.ui.screens.settings.SettingsScreen
 import com.example.englishlearningapp.ui.screens.splash.SplashScreen
+import com.example.englishlearningapp.ui.screens.home.HomeScreen
+import com.example.englishlearningapp.ui.screens.topic.TopicScreen
+import com.example.englishlearningapp.ui.screens.lesson.LessonScreen
+import com.example.englishlearningapp.ui.screens.quiz.QuizScreen
+import com.example.englishlearningapp.ui.screens.quiz.QuizResultScreen
+import com.example.englishlearningapp.ui.screens.vocabulary.VocabularyListScreen
+import com.example.englishlearningapp.ui.screens.vocabulary.VocabularyDetailScreen
+import com.example.englishlearningapp.ui.screens.progress.ProgressScreen
+import com.example.englishlearningapp.ui.screens.review.ReviewScreen
+import com.example.englishlearningapp.ui.screens.practice.PracticeScreen
 
 @Composable
 fun AppNavGraph(
@@ -75,6 +84,7 @@ fun AppNavGraph(
             )
         }
 
+        @Suppress("DEPRECATION")
         composable(Routes.FORGOT_PASSWORD) {
             ForgotPasswordScreen(
                 onBackToLogin = { navController.popBackStack() }
@@ -84,6 +94,7 @@ fun AppNavGraph(
         composable(Routes.PROFILE) {
             ProfileScreen(
                 onEditProfileClick = { navController.navigate(Routes.EDIT_PROFILE) },
+                onSecurityClick = { navController.navigate(Routes.FORGOT_PASSWORD) },
                 onSettingsClick = { navController.navigate(Routes.SETTINGS) },
                 onLogoutSuccess = {
                     navController.navigate(Routes.LOGIN) {
@@ -101,26 +112,21 @@ fun AppNavGraph(
 
         composable(Routes.SETTINGS) {
             SettingsScreen(
-                onBack = { navController.popBackStack() },
-                onNavigateToEditProfile = { navController.navigate(Routes.EDIT_PROFILE) },
-                onNavigateToChangePassword = { navController.navigate(Routes.FORGOT_PASSWORD) }
+                onBack = { navController.popBackStack() }
             )
         }
 
-        // --- Người 2 & 3 Placeholder Stubs ---
+        // --- Người 2 & 3 Real Screens ---
         composable(Routes.HOME) {
-            HomeScreenStub(
+            HomeScreen(
                 onGoToTopic = { navController.navigate(Routes.TOPIC) },
+                onGoToProgress = { navController.navigate(Routes.PROGRESS) },
                 onGoToProfile = { navController.navigate(Routes.PROFILE) }
             )
         }
 
         composable(Routes.TOPIC) {
-            TopicScreenStub(
-                onTopicClick = { topicId ->
-                    navController.navigate("lesson/$topicId")
-                }
-            )
+            TopicScreen(navController = navController)
         }
 
         composable(
@@ -128,11 +134,9 @@ fun AppNavGraph(
             arguments = listOf(navArgument("topicId") { type = NavType.StringType })
         ) { backStackEntry ->
             val topicId = backStackEntry.arguments?.getString("topicId") ?: ""
-            LessonScreenStub(
-                topicId = topicId,
-                onLessonClick = { lessonId ->
-                    navController.navigate("vocabulary_list/$lessonId")
-                }
+            LessonScreen(
+                navController = navController,
+                topicId = topicId
             )
         }
 
@@ -141,10 +145,20 @@ fun AppNavGraph(
             arguments = listOf(navArgument("lessonId") { type = NavType.StringType })
         ) { backStackEntry ->
             val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
-            VocabularyListScreenStub(
-                lessonId = lessonId,
-                onStartQuiz = { navController.navigate("quiz/$lessonId") },
-                onStartPractice = { navController.navigate("practice/$lessonId") }
+            VocabularyListScreen(
+                navController = navController,
+                lessonId = lessonId
+            )
+        }
+
+        composable(
+            route = Routes.VOCABULARY_DETAIL,
+            arguments = listOf(navArgument("lessonId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
+            VocabularyDetailScreen(
+                navController = navController,
+                lessonId = lessonId
             )
         }
 
@@ -153,7 +167,14 @@ fun AppNavGraph(
             arguments = listOf(navArgument("lessonId") { type = NavType.StringType })
         ) { backStackEntry ->
             val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
-            PracticeScreenStub(lessonId = lessonId)
+            PracticeScreen(
+                onBack = { navController.popBackStack() },
+                onFinish = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.HOME) { inclusive = true }
+                    }
+                }
+            )
         }
 
         composable(
@@ -161,80 +182,46 @@ fun AppNavGraph(
             arguments = listOf(navArgument("lessonId") { type = NavType.StringType })
         ) { backStackEntry ->
             val lessonId = backStackEntry.arguments?.getString("lessonId") ?: ""
-            QuizScreenStub(lessonId = lessonId)
+            QuizScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToResult = { score, correct, total ->
+                    navController.navigate(Routes.result(score, correct, total)) {
+                        popUpTo(Routes.quiz(lessonId)) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(
+            route = Routes.RESULT,
+            arguments = listOf(
+                navArgument("score") { type = NavType.IntType },
+                navArgument("correct") { type = NavType.IntType },
+                navArgument("total") { type = NavType.IntType }
+            )
+        ) {
+            QuizResultScreen(
+                onRetry = { navController.popBackStack() },
+                onBackHome = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.HOME) { inclusive = true }
+                    }
+                },
+                onReview = { navController.navigate(Routes.REVIEW) }
+            )
         }
 
         composable(Routes.PROGRESS) {
-            ProgressScreenStub()
+            ProgressScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToMistakes = { navController.navigate(Routes.REVIEW) }
+            )
         }
-    }
-}
 
-// --- Stubs for other team members ---
-
-@Composable
-fun HomeScreenStub(onGoToTopic: () -> Unit, onGoToProfile: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("Home Screen (Person 2's Task)", style = MaterialTheme.typography.headlineSmall)
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        Button(onClick = onGoToTopic) {
-            Text("Go to Topic List (Person 2)")
+        composable(Routes.REVIEW) {
+            ReviewScreen(
+                onBack = { navController.popBackStack() }
+            )
         }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Button(
-            onClick = onGoToProfile,
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-        ) {
-            Text("Go to My Profile (Person 1)")
-        }
-    }
-}
-
-@Composable
-fun TopicScreenStub(onTopicClick: (String) -> Unit) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Topic Screen Stub (Người 2)")
-    }
-}
-
-@Composable
-fun LessonScreenStub(topicId: String, onLessonClick: (String) -> Unit) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Lesson Screen Stub for Topic: $topicId (Người 2)")
-    }
-}
-
-@Composable
-fun VocabularyListScreenStub(lessonId: String, onStartQuiz: () -> Unit, onStartPractice: () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Vocabulary List Stub for Lesson: $lessonId (Người 2)")
-    }
-}
-
-@Composable
-fun PracticeScreenStub(lessonId: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Practice Screen Stub for Lesson: $lessonId (Người 3)")
-    }
-}
-
-@Composable
-fun QuizScreenStub(lessonId: String) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Quiz Screen Stub for Lesson: $lessonId (Người 3)")
-    }
-}
-
-@Composable
-fun ProgressScreenStub() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Progress Screen Stub (Người 3)")
     }
 }

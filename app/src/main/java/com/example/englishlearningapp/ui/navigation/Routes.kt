@@ -12,6 +12,7 @@ object Routes {
     const val TOPIC = "topic"
     const val LESSON = "lesson/{topicId}"
     const val VOCABULARY_LIST = "vocabulary_list/{lessonId}"
+    const val VOCABULARY_DETAIL = "vocabulary_detail/{lessonId}"
 
     // Learning & Quiz
     const val PRACTICE = "practice/{lessonId}"
@@ -22,10 +23,14 @@ object Routes {
 
     // Profile
     const val PROFILE = "profile"
+    const val EDIT_PROFILE = "edit_profile"
     const val SETTINGS = "settings"
 
     // Helper functions
     fun lessonList(topicId: String) = "lesson/$topicId"
+    fun vocabularyList(lessonId: String) = "vocabulary_list/$lessonId"
+    fun vocabularyDetail(lessonId: String) = "vocabulary_detail/$lessonId"
+    fun practice(lessonId: String) = "practice/$lessonId"
     fun quiz(lessonId: String) = "quiz/$lessonId"
     fun result(score: Int, correct: Int, total: Int) = "result/$score/$correct/$total"
 }

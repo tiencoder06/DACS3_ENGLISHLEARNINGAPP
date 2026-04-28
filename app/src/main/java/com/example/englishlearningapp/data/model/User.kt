@@ -1,11 +1,16 @@
 package com.example.englishlearningapp.data.model
 
+import com.google.firebase.Timestamp
+
 data class User(
     val uid: String = "",
     val email: String = "",
     val fullName: String = "",
     val role: String = "user",
     val streakDays: Int = 0,
+    val longestStreak: Int = 0,
+    val lastStudyDate: String = "",
+    val lastActiveAt: Timestamp? = null,
     val wordsLearned: Int = 0,
     val level: String = "Beginner",
     val createdAt: Long = System.currentTimeMillis(),

@@ -26,7 +26,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,6 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.englishlearningapp.data.model.Lesson
 import com.example.englishlearningapp.data.model.Topic
+import com.example.englishlearningapp.ui.navigation.Routes
 import com.example.englishlearningapp.ui.theme.Primary
 
 enum class LessonStatus {
@@ -61,10 +61,10 @@ fun LessonScreen(
         containerColor = Color(0xFFFAF8FF),
         topBar = {
             TopAppBar(
-                title = { Text(currentTopic?.name ?: "Lessons", fontWeight = FontWeight.Bold) },
+                title = { Text(currentTopic?.name ?: "Bài học", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -89,8 +89,6 @@ fun LessonScreen(
                 itemsIndexed(lessons) { index, lesson ->
                     val progressStatus = lessonProgress[lesson.lessonId]
                     
-                    // Logic tính toán bài học Active: 
-                    // Là bài đầu tiên nếu chưa có bài nào xong, hoặc là bài ngay sau bài đã xong cuối cùng.
                     val status = when {
                         progressStatus == "completed" -> LessonStatus.COMPLETED
                         index == 0 || (index > 0 && lessonProgress[lessons[index - 1].lessonId] == "completed") -> LessonStatus.ACTIVE
@@ -102,7 +100,7 @@ fun LessonScreen(
                         status = status,
                         onClick = { 
                             if (status != LessonStatus.LOCKED) {
-                                navController.navigate("vocabulary_list/${lesson.lessonId}")
+                                navController.navigate(Routes.vocabularyList(lesson.lessonId))
                             }
                         }
                     )
@@ -118,7 +116,7 @@ fun LessonScreen(
 
 @Composable
 fun HeroSection(topic: Topic?) {
-    val topicName = topic?.name ?: "Loading..."
+    val topicName = topic?.name ?: "Đang tải..."
     
     val icon = when (topic?.iconType?.lowercase()) {
         "work" -> Icons.Default.Work
@@ -133,7 +131,7 @@ fun HeroSection(topic: Topic?) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(24.dp)
-            .height(140.dp), // Giảm chiều cao xuống để cân đối hơn sau khi bỏ progress bar
+            .height(140.dp),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     ) {
@@ -141,13 +139,11 @@ fun HeroSection(topic: Topic?) {
             modifier = Modifier
                 .fillMaxSize()
                 .drawBehind {
-                    // Quầng sáng trắng mờ ở góc trên bên phải
                     drawCircle(
                         color = Color.White.copy(alpha = 0.15f),
                         radius = size.minDimension * 0.5f,
                         center = Offset(size.width * 0.95f, size.height * 0.05f)
                     )
-                    // Quầng sáng nhỏ hơn ở góc dưới bên trái
                     drawCircle(
                         color = Color.White.copy(alpha = 0.08f),
                         radius = size.minDimension * 0.3f,
@@ -163,14 +159,14 @@ fun HeroSection(topic: Topic?) {
             ) {
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.Center // Căn giữa nội dung theo chiều dọc
+                    verticalArrangement = Arrangement.Center
                 ) {
                     Surface(
                         color = Color.White.copy(alpha = 0.2f),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = "TOPIC",
+                            text = "CHỦ ĐỀ",
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -186,7 +182,6 @@ fun HeroSection(topic: Topic?) {
                     )
                 }
                 
-                // Topic Icon
                 Surface(
                     modifier = Modifier.size(72.dp),
                     color = Color.White.copy(alpha = 0.15f),
@@ -219,7 +214,6 @@ fun LessonItem(lesson: Lesson, status: LessonStatus, onClick: () -> Unit) {
             .padding(horizontal = 24.dp, vertical = 12.dp)
             .alpha(animatedAlpha)
     ) {
-        // Shadow Layer for 3D effect
         if (status != LessonStatus.LOCKED) {
             Box(
                 modifier = Modifier
@@ -253,7 +247,6 @@ fun LessonItem(lesson: Lesson, status: LessonStatus, onClick: () -> Unit) {
                     .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Icon section
                 Box(
                     modifier = Modifier
                         .size(56.dp)
@@ -293,7 +286,7 @@ fun LessonItem(lesson: Lesson, status: LessonStatus, onClick: () -> Unit) {
                         color = if (status == LessonStatus.LOCKED) Color.Gray else Color.Black
                     )
                     Text(
-                        text = if (status == LessonStatus.COMPLETED) "Review this lesson" else "${lesson.totalWords} vocabularies",
+                        text = if (status == LessonStatus.COMPLETED) "Ôn tập bài học này" else "${lesson.totalWords} từ vựng",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray,
                         maxLines = 1
@@ -313,7 +306,6 @@ fun LessonItem(lesson: Lesson, status: LessonStatus, onClick: () -> Unit) {
             }
         }
 
-        // Active Badge
         if (status == LessonStatus.ACTIVE) {
             Surface(
                 modifier = Modifier
@@ -324,7 +316,7 @@ fun LessonItem(lesson: Lesson, status: LessonStatus, onClick: () -> Unit) {
                 shadowElevation = 4.dp
             ) {
                 Text(
-                    "CONTINUE LEARNING",
+                    "TIẾP TỤC HỌC",
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.White,
@@ -342,12 +334,11 @@ fun PressableStartButton(onClick: () -> Unit) {
     val animatedYOffset by animateDpAsState(targetValue = if (isPressed) 2.dp else 0.dp, label = "btnOffset")
 
     Box(contentAlignment = Alignment.Center) {
-        // Bottom Shadow for 3D effect
         Box(
             modifier = Modifier
                 .offset(y = 4.dp)
                 .size(width = 80.dp, height = 40.dp)
-                .background(Color(0xFF1A45A0), RoundedCornerShape(12.dp)) // Darker shade of Primary
+                .background(Color(0xFF1A45A0), RoundedCornerShape(12.dp))
         )
         
         Button(
@@ -361,7 +352,7 @@ fun PressableStartButton(onClick: () -> Unit) {
             colors = ButtonDefaults.buttonColors(containerColor = Primary),
             elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp)
         ) {
-            Text("START", fontWeight = FontWeight.Black, fontSize = 12.sp)
+            Text("BẮT ĐẦU", fontWeight = FontWeight.Black, fontSize = 12.sp)
         }
     }
 }
@@ -397,12 +388,12 @@ fun StudyTipSection() {
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    "Study Tip",
+                    "Mẹo học tập",
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.labelLarge
                 )
                 Text(
-                    "Consistency is key! Try to complete one lesson per day.",
+                    "Kiên trì là chìa khóa! Hãy cố gắng hoàn thành ít nhất một bài học mỗi ngày.",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.DarkGray
                 )
