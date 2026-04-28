@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -34,6 +35,7 @@ import com.example.englishlearningapp.ui.screens.review.ReviewScreen
 import com.example.englishlearningapp.ui.screens.practice.PracticeScreen
 import com.example.englishlearningapp.ui.screens.placement.PlacementIntroScreen
 import com.example.englishlearningapp.ui.screens.placement.PlacementQuestionScreen
+import com.example.englishlearningapp.ui.screens.placement.PlacementResultScreen
 import com.example.englishlearningapp.ui.screens.placement.PlacementViewModel
 import com.example.englishlearningapp.utils.TextToSpeechHelper
 
@@ -61,10 +63,6 @@ fun AppNavGraph(
         composable(Routes.LOGIN) {
             LoginScreen(
                 onLoginSuccess = {
-                    // Sau khi Login, chuyển qua Intro để ViewModel ở đó check hoặc navigate trực tiếp
-                    // Để an toàn, ta chuyển qua PLACEMENT_INTRO, màn hình này sẽ được bọc bởi logic check nếu cần
-                    // Hoặc đơn giản là chuyển đến HOME nếu user cũ, PLACEMENT_INTRO nếu user mới.
-                    // Ở đây ta chuyển đến PLACEMENT_INTRO để bắt đầu luồng check.
                     navController.navigate(Routes.PLACEMENT_INTRO) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
@@ -150,14 +148,14 @@ fun AppNavGraph(
         }
 
         composable(Routes.PLACEMENT_QUESTION) {
-            val viewModel: PlacementViewModel = hiltViewModel() 
+            val parentEntry = remember(it) { navController.getBackStackEntry(Routes.PLACEMENT_INTRO) }
+            val viewModel: PlacementViewModel = hiltViewModel(parentEntry)
             val uiState by viewModel.uiState.collectAsState()
 
             LaunchedEffect(uiState.isCompleted) {
                 if (uiState.isCompleted) {
-                    // Tạm thời về HOME vì chưa có RESULT screen
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.PLACEMENT_INTRO) { inclusive = true }
+                    navController.navigate(Routes.PLACEMENT_RESULT) {
+                        popUpTo(Routes.PLACEMENT_QUESTION) { inclusive = true }
                     }
                 }
             }
@@ -174,7 +172,32 @@ fun AppNavGraph(
             )
         }
 
-        // --- Người 2 & 3 Real Screens ---
+        composable(Routes.PLACEMENT_RESULT) {
+            val parentEntry = remember(it) { navController.getBackStackEntry(Routes.PLACEMENT_INTRO) }
+            val viewModel: PlacementViewModel = hiltViewModel(parentEntry)
+            val uiState by viewModel.uiState.collectAsState()
+
+            PlacementResultScreen(
+                result = uiState.result,
+                onStartLearningClick = { topicId, _ ->
+                    // Quan trọng: Điều hướng về HOME trước để làm gốc
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.PLACEMENT_INTRO) { inclusive = true }
+                    }
+                    // Sau đó mới mở màn hình Lesson nếu có ID
+                    if (topicId.isNotEmpty()) {
+                        navController.navigate(Routes.lessonList(topicId))
+                    }
+                },
+                onHomeClick = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.PLACEMENT_INTRO) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // --- Các màn hình chính ---
         composable(Routes.HOME) {
             HomeScreen(
                 onGoToTopic = { navController.navigate(Routes.TOPIC) },
