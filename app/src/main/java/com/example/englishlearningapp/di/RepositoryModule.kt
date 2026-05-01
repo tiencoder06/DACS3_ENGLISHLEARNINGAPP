@@ -52,4 +52,10 @@ abstract class RepositoryModule {
     abstract fun bindAIChatRepository(
         impl: AIChatRepositoryImpl
     ): AIChatRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAIProxyRepository(
+        impl: AIProxyRepositoryImpl
+    ): AIProxyRepository
 }

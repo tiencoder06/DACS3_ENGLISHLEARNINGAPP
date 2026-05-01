@@ -1,0 +1,9 @@
+name = "lingopro-ai-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-05-29"
+
+[vars]
+# Add non-sensitive variables here
+
+# [secrets]
+# GEMINI_API_KEY (will be added via wrangler secret put)
