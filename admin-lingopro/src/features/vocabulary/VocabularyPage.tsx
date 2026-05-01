@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useVocabulary } from "./useVocabulary";
 import { getLessons } from "../lessons/lessonService";
 import { type Lesson } from "../../models/Lesson";
 import { type Vocabulary, type VocabularyStatus } from "../../models/Vocabulary";
 import VocabularyFormModal from "./VocabularyFormModal";
+import ImportVocabularyExcel from "./ImportVocabularyExcel";
 
 const VocabularyPage: React.FC = () => {
   const {
@@ -13,7 +14,9 @@ const VocabularyPage: React.FC = () => {
     reloadVocabulary,
     createVocabulary,
     updateVocabulary,
-    deleteVocabulary
+    deleteVocabulary,
+    deleteVocabulariesBatch,
+    importVocabularyFull
   } = useVocabulary();
 
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -24,17 +27,85 @@ const VocabularyPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedVocab, setSelectedVocab] = useState<Vocabulary | null>(null);
 
+  // Bulk select state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const loadLessons = async () => {
+    try {
+      const data = await getLessons();
+      setLessons(data);
+    } catch (err) {
+      console.error("Failed to load lessons", err);
+    }
+  };
+
   useEffect(() => {
-    const loadLessons = async () => {
-      try {
-        const data = await getLessons();
-        setLessons(data);
-      } catch (err) {
-        console.error("Failed to load lessons", err);
-      }
-    };
     loadLessons();
   }, []);
+
+  const filteredVocabulary = useMemo(() => {
+    return vocabularyItems.filter(item => {
+      const matchesSearch = item.word.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           item.meaning.toLowerCase().includes(searchTerm.toLowerCase());
+
+      let matchesLesson = true;
+      if (lessonFilter === "unassigned") {
+          matchesLesson = !item.lessonId;
+      } else if (lessonFilter !== "all") {
+          matchesLesson = item.lessonId === lessonFilter;
+      }
+
+      const matchesStatus = statusFilter === "all" || item.status === statusFilter;
+      return matchesSearch && matchesLesson && matchesStatus;
+    });
+  }, [vocabularyItems, searchTerm, lessonFilter, statusFilter]);
+
+  const handleAddNew = () => {
+    setSelectedVocab(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = (vocab: Vocabulary) => {
+    setSelectedVocab(vocab);
+    setIsModalOpen(true);
+  };
+
+  const handleFormSubmit = async (data: Partial<Vocabulary>) => {
+    if (selectedVocab) {
+      await updateVocabulary(selectedVocab.vocabId, data);
+    } else {
+      await createVocabulary(data);
+    }
+  };
+
+  const handleImportExcel = async (rawData: any[]) => {
+      await importVocabularyFull(rawData);
+      await loadLessons(); // Refresh lessons in case new ones were created
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredVocabulary.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredVocabulary.map(v => v.vocabId));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+        await deleteVocabulariesBatch(selectedIds);
+        setSelectedIds([]);
+    } catch (err) {
+        alert("Lỗi khi xóa hàng loạt.");
+    }
+  };
 
   const renderLessonLabel = (lessonId: string) => {
     if (!lessonId) return (
@@ -55,44 +126,28 @@ const VocabularyPage: React.FC = () => {
     );
   };
 
-  const filteredVocabulary = vocabularyItems.filter(item => {
-    const matchesSearch = item.word.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.meaning.toLowerCase().includes(searchTerm.toLowerCase());
-
-    let matchesLesson = true;
-    if (lessonFilter === "unassigned") {
-        matchesLesson = !item.lessonId;
-    } else if (lessonFilter !== "all") {
-        matchesLesson = item.lessonId === lessonFilter;
-    }
-
-    const matchesStatus = statusFilter === "all" || item.status === statusFilter;
-    return matchesSearch && matchesLesson && matchesStatus;
-  });
-
-  const handleAddNew = () => {
-    setSelectedVocab(null);
-    setIsModalOpen(true);
-  };
-
-  const handleEdit = (vocab: Vocabulary) => {
-    setSelectedVocab(vocab);
-    setIsModalOpen(true);
-  };
-
-  const handleFormSubmit = async (data: Partial<Vocabulary>) => {
-    if (selectedVocab) {
-      await updateVocabulary(selectedVocab.vocabId, data);
-    } else {
-      await createVocabulary(data);
-    }
-  };
-
   return (
     <div className="space-y-6 text-left">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold text-gray-800">Quản lý từ vựng</h2>
-        <div className="flex items-center gap-3">
+        <div>
+            <h2 className="text-2xl font-bold text-gray-800">Quản lý từ vựng</h2>
+            <div className="mt-1 flex items-center gap-2 text-xs font-medium text-gray-500">
+                <span className="bg-gray-100 px-2 py-1 rounded-lg">Tổng: <strong>{vocabularyItems.length}</strong> từ</span>
+                {filteredVocabulary.length !== vocabularyItems.length && (
+                    <span className="bg-blue-50 text-blue-500 px-2 py-1 rounded-lg">Kết quả lọc: <strong>{filteredVocabulary.length}</strong></span>
+                )}
+            </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+            {selectedIds.length > 0 && (
+                <button
+                    onClick={handleBulkDelete}
+                    className="px-4 py-2 bg-red-100 text-red-600 rounded-xl font-bold hover:bg-red-200 transition flex items-center gap-2 shadow-sm"
+                >
+                    🗑️ Xóa ({selectedIds.length})
+                </button>
+            )}
             <button
                 onClick={reloadVocabulary}
                 className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition shadow-sm"
@@ -100,6 +155,9 @@ const VocabularyPage: React.FC = () => {
             >
                 🔄
             </button>
+
+            <ImportVocabularyExcel onImport={handleImportExcel} />
+
             <button
                 onClick={handleAddNew}
                 className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-200"
@@ -157,18 +215,33 @@ const VocabularyPage: React.FC = () => {
                 <table className="w-full text-left border-collapse">
                     <thead className="bg-gray-50 border-b border-gray-100">
                         <tr>
+                            <th className="px-6 py-4 w-10">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedIds.length === filteredVocabulary.length && filteredVocabulary.length > 0}
+                                    onChange={toggleSelectAll}
+                                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                            </th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Từ vựng</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Ý nghĩa</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Ví dụ</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Bài học</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Phiên âm</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Trạng thái</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-right">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {filteredVocabulary.map((vocab) => (
-                            <tr key={vocab.vocabId} className="hover:bg-gray-50 transition group">
+                            <tr key={vocab.vocabId} className={`hover:bg-gray-50 transition group ${selectedIds.includes(vocab.vocabId) ? 'bg-blue-50' : ''}`}>
+                                <td className="px-6 py-4">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedIds.includes(vocab.vocabId)}
+                                        onChange={() => toggleSelectOne(vocab.vocabId)}
+                                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                </td>
                                 <td className="px-6 py-4">
                                     <div className="text-sm font-bold text-gray-900">{vocab.word}</div>
                                     <div className="text-[10px] text-gray-400">{(vocab.pronunciationSource || "TTS").toUpperCase()}</div>
@@ -177,11 +250,6 @@ const VocabularyPage: React.FC = () => {
                                 <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{vocab.exampleSentence || vocab.example || "---"}</td>
                                 <td className="px-6 py-4">{renderLessonLabel(vocab.lessonId)}</td>
                                 <td className="px-6 py-4 text-sm text-gray-500 italic">{vocab.pronunciation || "---"}</td>
-                                <td className="px-6 py-4 text-sm">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                        vocab.status === "active" ? "bg-green-100 text-green-600" : "bg-orange-100 text-orange-600"
-                                    }`}>{vocab.status === "active" ? "Hoạt động" : "Tạm ngưng"}</span>
-                                </td>
                                 <td className="px-6 py-4 text-right space-x-2">
                                     <button onClick={() => handleEdit(vocab)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition">✏️</button>
                                     <button onClick={() => deleteVocabulary(vocab.vocabId)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition">🗑️</button>

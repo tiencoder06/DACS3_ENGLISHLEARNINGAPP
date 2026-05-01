@@ -61,6 +61,18 @@ export const useTopics = () => {
     }
   };
 
+  const handleDeleteTopicsBatch = async (topicIds: string[]) => {
+    if (!currentUser) return;
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${topicIds.length} chủ đề đã chọn?`)) return;
+    try {
+      await topicService.deleteTopicsBatch(topicIds, currentUser.uid);
+      await loadTopics();
+    } catch (err) {
+      console.error(err);
+      throw new Error("Không thể xóa các chủ đề đã chọn.");
+    }
+  };
+
   return {
     topics,
     loading,
@@ -68,6 +80,7 @@ export const useTopics = () => {
     reload: loadTopics,
     createTopic: handleCreateTopic,
     updateTopic: handleUpdateTopic,
-    deleteTopic: handleDeleteTopic
+    deleteTopic: handleDeleteTopic,
+    deleteTopicsBatch: handleDeleteTopicsBatch
   };
 };

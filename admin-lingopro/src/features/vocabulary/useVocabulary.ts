@@ -61,6 +61,29 @@ export const useVocabulary = () => {
     }
   };
 
+  const handleDeleteVocabulariesBatch = async (vocabIds: string[]) => {
+    if (!currentUser) return;
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${vocabIds.length} từ vựng đã chọn?`)) return;
+    try {
+      await vocabularyService.deleteVocabulariesBatch(vocabIds, currentUser.uid);
+      await loadVocabulary();
+    } catch (err) {
+      console.error(err);
+      throw new Error("Không thể xóa các từ vựng đã chọn.");
+    }
+  };
+
+  const handleImportFull = async (rawData: any[]) => {
+    if (!currentUser) return;
+    try {
+      await vocabularyService.importVocabularyFull(rawData, currentUser.uid);
+      await loadVocabulary();
+    } catch (err) {
+      console.error(err);
+      throw new Error("Lỗi khi nhập từ vựng từ Excel.");
+    }
+  };
+
   return {
     vocabularyItems,
     loading,
@@ -68,6 +91,8 @@ export const useVocabulary = () => {
     reloadVocabulary: loadVocabulary,
     createVocabulary: handleCreateVocabulary,
     updateVocabulary: handleUpdateVocabulary,
-    deleteVocabulary: handleDeleteVocabulary
+    deleteVocabulary: handleDeleteVocabulary,
+    deleteVocabulariesBatch: handleDeleteVocabulariesBatch,
+    importVocabularyFull: handleImportFull
   };
 };

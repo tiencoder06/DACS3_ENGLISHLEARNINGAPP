@@ -2,10 +2,13 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useQuestions } from "./useQuestions";
 import { getLessons } from "../lessons/lessonService";
 import { getVocabulary } from "../vocabulary/vocabularyService";
+import { getTopics } from "../topics/topicService";
 import { type Lesson } from "../../models/Lesson";
 import { type Vocabulary } from "../../models/Vocabulary";
+import { type Topic } from "../../models/Topic";
 import { type Question, type QuestionType, type QuestionUsage, type QuestionStatus } from "../../models/Question";
 import QuestionFormModal from "./QuestionFormModal";
+import ImportQuestionsExcel from "./ImportQuestionsExcel";
 
 const QuestionsPage: React.FC = () => {
   const {
@@ -15,9 +18,12 @@ const QuestionsPage: React.FC = () => {
     reloadQuestions,
     createQuestion,
     updateQuestion,
-    deleteQuestion
+    deleteQuestion,
+    deleteQuestionsBatch,
+    importQuestionsFull
   } = useQuestions();
 
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [vocabulary, setVocabulary] = useState<Vocabulary[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -30,16 +36,25 @@ const QuestionsPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
 
+  // Bulk select state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const loadDependencies = async () => {
+    try {
+      const [tData, lData, vData] = await Promise.all([
+        getTopics(),
+        getLessons(),
+        getVocabulary()
+      ]);
+      setTopics(tData);
+      setLessons(lData);
+      setVocabulary(vData);
+    } catch (err) {
+      console.error("Failed to load dependencies", err);
+    }
+  };
+
   useEffect(() => {
-    const loadDependencies = async () => {
-      try {
-        const [lData, vData] = await Promise.all([getLessons(), getVocabulary()]);
-        setLessons(lData);
-        setVocabulary(vData);
-      } catch (err) {
-        console.error("Failed to load dependencies", err);
-      }
-    };
     loadDependencies();
   }, []);
 
@@ -85,6 +100,35 @@ const QuestionsPage: React.FC = () => {
     }
   };
 
+  const handleImportExcel = async (rawData: any[]) => {
+      await importQuestionsFull(rawData);
+      await loadDependencies();
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredQuestions.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredQuestions.map(q => q.questionId));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+        await deleteQuestionsBatch(selectedIds);
+        setSelectedIds([]);
+    } catch (err) {
+        alert("Lỗi khi xóa hàng loạt.");
+    }
+  };
+
   const formatType = (type: string) => {
     switch (type) {
         case "multiple_choice": return "Trắc nghiệm";
@@ -96,21 +140,42 @@ const QuestionsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 text-left">
-      <div className="bg-blue-50 p-2 rounded text-[10px] text-blue-600 font-bold mb-2">
-        Real CRUD QuestionsPage loaded
-      </div>
-
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold text-gray-800">Quản lý câu hỏi</h2>
-        <div className="flex items-center gap-3">
-            <button onClick={reloadQuestions} className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition shadow-sm">🔄</button>
+        <div>
+            <h2 className="text-2xl font-bold text-gray-800">Quản lý câu hỏi</h2>
+            <div className="mt-1 flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-lg">
+                    Tổng kho: <strong>{questions.length}</strong> câu
+                </span>
+                {filteredQuestions.length !== questions.length && (
+                    <span className="text-xs font-medium text-blue-500 bg-blue-50 px-2 py-1 rounded-lg">
+                        Kết quả lọc: <strong>{filteredQuestions.length}</strong> câu
+                    </span>
+                )}
+            </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+            {selectedIds.length > 0 && (
+                <button
+                    onClick={handleBulkDelete}
+                    className="px-4 py-2 bg-red-100 text-red-600 rounded-xl font-bold hover:bg-red-200 transition flex items-center gap-2 shadow-sm"
+                >
+                    🗑️ Xóa đã chọn ({selectedIds.length})
+                </button>
+            )}
+            <button onClick={reloadQuestions} className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition shadow-sm" title="Tải lại">🔄</button>
+
+            <ImportQuestionsExcel
+              onImport={handleImportExcel}
+            />
+
             <button onClick={handleAddNew} className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-200">
                 + Thêm câu hỏi mới
             </button>
         </div>
       </div>
 
-      {/* Advanced Filters */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
         <div className="flex-1 relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
@@ -163,6 +228,14 @@ const QuestionsPage: React.FC = () => {
                 <table className="w-full text-left border-collapse">
                     <thead className="bg-gray-50 border-b border-gray-100">
                         <tr>
+                            <th className="px-6 py-4 w-10">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedIds.length === filteredQuestions.length && filteredQuestions.length > 0}
+                                    onChange={toggleSelectAll}
+                                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                            </th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Câu hỏi</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Bài học / Từ vựng</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">Loại / Mục đích</th>
@@ -172,7 +245,15 @@ const QuestionsPage: React.FC = () => {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {filteredQuestions.map((q) => (
-                            <tr key={q.questionId} className="hover:bg-gray-50 transition group">
+                            <tr key={q.questionId} className={`hover:bg-gray-50 transition group ${selectedIds.includes(q.questionId) ? 'bg-blue-50' : ''}`}>
+                                <td className="px-6 py-4">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedIds.includes(q.questionId)}
+                                        onChange={() => toggleSelectOne(q.questionId)}
+                                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                </td>
                                 <td className="px-6 py-4">
                                     <div className="text-sm font-bold text-gray-900 line-clamp-2">{q.questionText}</div>
                                     <div className={`mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full inline-block ${q.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>

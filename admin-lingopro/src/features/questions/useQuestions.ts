@@ -61,6 +61,29 @@ export const useQuestions = () => {
     }
   };
 
+  const handleDeleteQuestionsBatch = async (questionIds: string[]) => {
+    if (!currentUser) return;
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${questionIds.length} câu hỏi đã chọn?`)) return;
+    try {
+      await questionService.deleteQuestionsBatch(questionIds, currentUser.uid);
+      await loadQuestions();
+    } catch (err) {
+      console.error(err);
+      throw new Error("Không thể xóa các câu hỏi đã chọn.");
+    }
+  };
+
+  const handleImportFull = async (rawData: any[]) => {
+    if (!currentUser) return;
+    try {
+      await questionService.importQuestionsFull(rawData, currentUser.uid);
+      await loadQuestions();
+    } catch (err) {
+      console.error(err);
+      throw new Error("Lỗi khi nhập dữ liệu từ Excel.");
+    }
+  };
+
   return {
     questions,
     loading,
@@ -68,6 +91,8 @@ export const useQuestions = () => {
     reloadQuestions: loadQuestions,
     createQuestion: handleCreateQuestion,
     updateQuestion: handleUpdateQuestion,
-    deleteQuestion: handleDeleteQuestion
+    deleteQuestion: handleDeleteQuestion,
+    deleteQuestionsBatch: handleDeleteQuestionsBatch,
+    importQuestionsFull: handleImportFull
   };
 };

@@ -13,7 +13,8 @@ const TopicsPage: React.FC = () => {
     reload,
     createTopic,
     updateTopic,
-    deleteTopic
+    deleteTopic,
+    deleteTopicsBatch
   } = useTopics();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -25,6 +26,9 @@ const TopicsPage: React.FC = () => {
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
+  // Bulk select state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
   const filteredTopics = topics.filter(topic => {
     const matchesSearch = topic.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || topic.status === statusFilter;
@@ -32,14 +36,12 @@ const TopicsPage: React.FC = () => {
   });
 
   const handleAddNew = () => {
-    console.log("[TopicsPage] Add topic clicked");
     setModalMode("create");
     setSelectedTopic(null);
     setIsModalOpen(true);
   };
 
   const handleEdit = (topic: Topic) => {
-    console.log("[TopicsPage] Edit topic clicked:", topic.topicId);
     setModalMode("edit");
     setSelectedTopic(topic);
     setIsModalOpen(true);
@@ -48,18 +50,39 @@ const TopicsPage: React.FC = () => {
   const handleFormSubmit = async (data: Partial<Topic>) => {
     setLocalError(null);
     try {
-      console.log("[TopicsPage] Submitting form data:", data);
       if (modalMode === "edit" && selectedTopic) {
         await updateTopic(selectedTopic.topicId, data);
       } else {
         await createTopic(data);
       }
-      console.log("[TopicsPage] Submit success");
       setIsModalOpen(false);
       reload();
     } catch (err: any) {
-      console.error("[TopicsPage] Submit failed:", err);
       setLocalError(err.message || "Lỗi khi lưu dữ liệu");
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredTopics.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredTopics.map(t => t.topicId));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+        await deleteTopicsBatch(selectedIds);
+        setSelectedIds([]);
+    } catch (err) {
+        alert("Lỗi khi xóa hàng loạt.");
     }
   };
 
@@ -68,12 +91,17 @@ const TopicsPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <h2 className="text-2xl font-bold text-gray-800">Quản lý chủ đề</h2>
-            <p className="text-[10px] text-gray-400 mt-1">
-                Trạng thái: modalOpen={String(isModalOpen)} | mode={modalMode}
-            </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+            {selectedIds.length > 0 && (
+                <button
+                    onClick={handleBulkDelete}
+                    className="px-4 py-2 bg-red-100 text-red-600 rounded-xl font-bold hover:bg-red-200 transition flex items-center gap-2"
+                >
+                    🗑️ Xóa đã chọn ({selectedIds.length})
+                </button>
+            )}
             <button
                 onClick={reload}
                 className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition shadow-sm"
@@ -141,6 +169,14 @@ const TopicsPage: React.FC = () => {
                 <table className="w-full text-left border-collapse">
                     <thead className="bg-gray-50 border-b border-gray-100">
                         <tr>
+                            <th className="px-6 py-4 w-10">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedIds.length === filteredTopics.length && filteredTopics.length > 0}
+                                    onChange={toggleSelectAll}
+                                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                            </th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Thứ tự</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Tên chủ đề</th>
                             <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Trạng thái</th>
@@ -149,7 +185,15 @@ const TopicsPage: React.FC = () => {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {filteredTopics.map((topic) => (
-                            <tr key={topic.topicId} className="hover:bg-gray-50 transition group">
+                            <tr key={topic.topicId} className={`hover:bg-gray-50 transition group ${selectedIds.includes(topic.topicId) ? 'bg-blue-50' : ''}`}>
+                                <td className="px-6 py-4">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedIds.includes(topic.topicId)}
+                                        onChange={() => toggleSelectOne(topic.topicId)}
+                                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                </td>
                                 <td className="px-6 py-4 text-sm text-gray-600 font-medium">#{topic.order}</td>
                                 <td className="px-6 py-4">
                                     <div className="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition">{topic.name}</div>
@@ -188,14 +232,10 @@ const TopicsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Render Modal conditionally */}
       {isModalOpen && (
         <TopicFormModal
           isOpen={isModalOpen}
-          onClose={() => {
-            console.log("[TopicsPage] Modal onClose called");
-            setIsModalOpen(false);
-          }}
+          onClose={() => setIsModalOpen(false)}
           onSubmit={handleFormSubmit}
           initialData={selectedTopic}
         />
