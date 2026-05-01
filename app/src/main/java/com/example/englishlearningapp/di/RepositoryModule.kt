@@ -46,4 +46,10 @@ abstract class RepositoryModule {
     abstract fun bindPlacementRepository(
         impl: PlacementRepositoryImpl
     ): PlacementRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAIChatRepository(
+        impl: AIChatRepositoryImpl
+    ): AIChatRepository
 }

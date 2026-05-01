@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.englishlearningapp.data.model.AIMessage
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,6 +32,11 @@ fun AIChatBottomSheet(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // Khởi tạo chat và lắng nghe dữ liệu theo User ID hiện tại
+    LaunchedEffect(Unit) {
+        viewModel.initChat()
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -42,35 +48,44 @@ fun AIChatBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .imePadding() // Tránh bàn phím che khuất
+                .imePadding()
         ) {
             // Header
             ChatHeader()
 
-            // Message List
-            val listState = rememberLazyListState()
-            LaunchedEffect(uiState.messages.size) {
-                if (uiState.messages.isNotEmpty()) {
-                    listState.animateScrollToItem(uiState.messages.size - 1)
+            if (uiState.isLoading) {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
-            }
-
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                contentPadding = PaddingValues(vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(uiState.messages) { message ->
-                    ChatBubble(message)
-                }
+            } else {
+                // Message List
+                val listState = rememberLazyListState()
                 
-                if (uiState.isThinking) {
-                    item {
-                        ThinkingIndicator()
+                // Tự động cuộn xuống khi có tin nhắn mới hoặc khi AI đang suy nghĩ
+                LaunchedEffect(uiState.messages.size, uiState.isThinking) {
+                    if (uiState.messages.isNotEmpty()) {
+                        delay(100) // Chờ UI render xong
+                        listState.animateScrollToItem(uiState.messages.size - 1)
+                    }
+                }
+
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    contentPadding = PaddingValues(vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(uiState.messages) { message ->
+                        ChatBubble(message)
+                    }
+                    
+                    if (uiState.isThinking) {
+                        item {
+                            ThinkingIndicator()
+                        }
                     }
                 }
             }
